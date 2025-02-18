@@ -15,8 +15,9 @@ class TravelApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         scaffoldBackgroundColor: Colors.blueGrey[50],
         textTheme: TextTheme(
-          headline6: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          bodyText2: TextStyle(fontSize: 18),
+          titleLarge: TextStyle(
+              fontSize: 22, fontWeight: FontWeight.bold), // Replaces headline6
+          bodyLarge: TextStyle(fontSize: 18), // Replaces bodyText1
         ),
       ),
       home: HomeScreen(),
