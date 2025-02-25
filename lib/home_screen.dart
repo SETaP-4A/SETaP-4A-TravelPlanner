@@ -26,7 +26,7 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
+            const Row(
               children: [
                 Icon(Icons.flight_takeoff),
                 SizedBox(width: 10),
@@ -34,7 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
             IconButton(
-              icon: Icon(Icons.account_circle),
+              icon: const Icon(Icons.account_circle),
               onPressed: () => _navigateTo(AccountPage()),
             ),
           ],
@@ -44,7 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
-            DrawerHeader(
+            const DrawerHeader(
               decoration: BoxDecoration(color: Colors.blue),
               child: Text(
                 'Menu',
@@ -52,18 +52,18 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             ListTile(
-              leading: Icon(Icons.card_travel),
-              title: Text('Trips'),
+              leading: const Icon(Icons.card_travel),
+              title: const Text('Trips'),
               onTap: () => _navigateTo(TripsPage()),
             ),
             ListTile(
-              leading: Icon(Icons.people),
-              title: Text('Friends'),
+              leading: const Icon(Icons.people),
+              title: const Text('Friends'),
               onTap: () => _navigateTo(FriendsPage()),
             ),
             ListTile(
-              leading: Icon(Icons.explore),
-              title: Text('Explore'),
+              leading: const Icon(Icons.explore),
+              title: const Text('Explore'),
               onTap: () => _navigateTo(ExplorePage()),
             ),
           ],
