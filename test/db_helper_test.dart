@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart'; // Import sqflite_common_ffi for local testing (no VM)
-import 'package:se_cw/db/database_helper.dart'; // Import the DatabaseHelper for DB operations
-import 'package:se_cw/models/itinerary.dart'; // Import the Itinerary model
+import 'package:attempt1/db/database_helper.dart';
+import 'package:attempt1/models/itinerary.dart';
 
 void main() {
   // Make sure to initialize sqflite correctly for tests (since we're not using the VM version)
