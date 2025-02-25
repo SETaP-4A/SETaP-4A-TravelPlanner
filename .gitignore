@@ -1,0 +1,13 @@
+﻿.dart_tool/dartpad/web_plugin_registrant.dart
+.dart_tool/package_config_subset
+android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
+android/local.properties
+ios/Flutter/flutter_export_environment.sh
+ios/Flutter/Generated.xcconfig
+ios/Runner/GeneratedPluginRegistrant.h
+ios/Runner/GeneratedPluginRegistrant.m
+macos/Flutter/ephemeral/flutter_export_environment.sh
+macos/Flutter/ephemeral/Flutter-Generated.xcconfig
+.flutter-plugins
+.flutter-plugins-dependencies
+.dart_tool/package_config.json
