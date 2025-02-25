@@ -1,3 +1,4 @@
+import 'package:attempt1/account_page.dart';
 import 'package:flutter/material.dart';
 import 'trips_page.dart';
 import 'friends_page.dart';
@@ -34,7 +35,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             IconButton(
               icon: Icon(Icons.account_circle),
-              onPressed: () {},
+              onPressed: () => _navigateTo(AccountPage()),
             ),
           ],
         ),

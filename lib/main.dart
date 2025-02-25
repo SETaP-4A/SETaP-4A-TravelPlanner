@@ -1,6 +1,7 @@
 // main.dart
 import 'package:flutter/material.dart';
 import 'home_screen.dart';
+import 'account_page.dart';
 
 void main() {
   runApp(TravelApp());
