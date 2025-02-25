@@ -17,7 +17,7 @@ class TravelApp extends StatelessWidget {
         textTheme: TextTheme(
           titleLarge: TextStyle(
               fontSize: 22, fontWeight: FontWeight.bold), // Replaces headline6
-          bodyLarge: TextStyle(fontSize: 18), // Replaces bodyText12
+          bodyLarge: TextStyle(fontSize: 18), // Replaces bodyText1
         ),
       ),
       home: HomeScreen(),
