@@ -1,7 +1,6 @@
 // main.dart
 import 'package:flutter/material.dart';
 import 'home_screen.dart';
-import 'account_page.dart';
 
 void main() {
   runApp(TravelApp());
@@ -16,9 +15,8 @@ class TravelApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         scaffoldBackgroundColor: Colors.blueGrey[50],
         textTheme: const TextTheme(
-          titleLarge: TextStyle(
-              fontSize: 22, fontWeight: FontWeight.bold), // Replaces headline6
-          bodyLarge: TextStyle(fontSize: 18), // Replaces bodyText1
+          titleLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          bodyMedium: TextStyle(fontSize: 18),
         ),
       ),
       home: HomeScreen(),
