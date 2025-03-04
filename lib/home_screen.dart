@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'trips_page.dart';
 import 'friends_page.dart';
 import 'explore_page.dart';
-import 'package:setap4a/account_page.dart';
+import 'account_page.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
