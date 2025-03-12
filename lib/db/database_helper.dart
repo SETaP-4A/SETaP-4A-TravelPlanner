@@ -28,9 +28,9 @@ class DatabaseHelper {
     final path = await getDatabasesPath();
     final dbPath = join(path, 'app_database.db');
 
-    // 🚀 Debug: Delete the database before creating it (for testing purposes)
+    // Debug: Delete the database before creating it (for testing purposes)
     if (await File(dbPath).exists()) {
-      print('🔄 Deleting existing database...');
+      print('Deleting existing database...');
       await deleteDatabase(dbPath);
     }
 
@@ -44,7 +44,7 @@ class DatabaseHelper {
 
   // Called when the database is first created.
   Future<void> _onCreate(Database db, int version) async {
-    print('📌 Creating tables...');
+    print('Creating tables...');
 
     await db.execute('''CREATE TABLE user(
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -113,13 +113,13 @@ class DatabaseHelper {
       selectedItineraryItem TEXT
     )''');
 
-    print('✅ Tables created successfully.');
+    print('Tables created successfully.');
   }
 
   // Enables foreign key constraints on opening the database
   Future<void> _onOpen(Database db) async {
     await db.execute('PRAGMA foreign_keys = ON');
-    print('🔗 Foreign keys enabled.');
+    print('Foreign keys enabled.');
   }
 
   // Insert a new user into the 'user' table
