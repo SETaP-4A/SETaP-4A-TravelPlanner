@@ -9,7 +9,7 @@ class Itinerary {
     required this.userId,
   });
 
-  // Converts a Itinerary object into a Map
+  // Convert an Itinerary object into a Map
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -18,7 +18,7 @@ class Itinerary {
     };
   }
 
-  // Converts a Map into an Itinerary object
+  // Convert a Map into an Itinerary object
   factory Itinerary.fromMap(Map<String, dynamic> map) {
     return Itinerary(
       id: map['id'],
