@@ -15,20 +15,8 @@ class TripDetailsPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Trip Image
-            trip["image"] != null && File(trip["image"]).existsSync()
-                ? Image.file(File(trip["image"]),
-                    height: 200, width: double.infinity, fit: BoxFit.cover)
-                : Container(
-                    height: 200,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(Icons.camera_alt,
-                        size: 50, color: Colors.black54),
-                  ),
+            // Trip Image (Handles both asset and file images)
+            _buildTripImage(),
 
             const SizedBox(height: 20),
 
@@ -39,7 +27,7 @@ class TripDetailsPage extends StatelessWidget {
             ),
             const SizedBox(height: 10),
 
-            // Trip Details
+            // Trip Details Section
             _buildDetail("Destination", trip["destination"]),
             _buildDetail("Start Date", trip["start_date"]),
             _buildDetail("End Date", trip["end_date"]),
@@ -49,47 +37,54 @@ class TripDetailsPage extends StatelessWidget {
             _buildDetail("Description", trip["description"]),
             _buildDetail("Comments", trip["comments"]),
 
-            // Friends
             const SizedBox(height: 10),
-            Text("Friends", style: _headerStyle),
-            const SizedBox(height: 5),
-            trip["friends"] != null && trip["friends"].isNotEmpty
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: trip["friends"].map<Widget>((friend) {
-                      return Padding(
-                        padding: const EdgeInsets.only(left: 10, bottom: 5),
-                        child: Text("• $friend",
-                            style: const TextStyle(fontSize: 16)),
-                      );
-                    }).toList(),
-                  )
-                : const Text("No friends added yet.",
-                    style: TextStyle(color: Colors.grey)),
 
-            // Activities
+            // Friends Section
+            _buildListSection("Friends", trip["friends"]),
+
             const SizedBox(height: 10),
-            Text("Activities", style: _headerStyle),
-            const SizedBox(height: 5),
-            trip["activities"] != null && trip["activities"].isNotEmpty
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: trip["activities"].map<Widget>((activity) {
-                      return Padding(
-                        padding: const EdgeInsets.only(left: 10, bottom: 5),
-                        child: Text("• $activity",
-                            style: const TextStyle(fontSize: 16)),
-                      );
-                    }).toList(),
-                  )
-                : const Text("No activities planned yet.",
-                    style: TextStyle(color: Colors.grey)),
+
+            // Activities Section
+            _buildListSection("Activities", trip["activities"]),
           ],
         ),
       ),
     );
   }
 
+  // Function to build the trip image (handles asset & file paths)
+  Widget _buildTripImage() {
+    if (trip["image"] != null && trip["image"].isNotEmpty) {
+      if (trip["image"].startsWith("assets/")) {
+        return Image.asset(
+          trip["image"],
+          height: 200,
+          width: double.infinity,
+          fit: BoxFit.cover,
+        );
+      } else if (File(trip["image"]).existsSync()) {
+        return Image.file(
+          File(trip["image"]),
+          height: 200,
+          width: double.infinity,
+          fit: BoxFit.cover,
+        );
+      }
+    }
+
+    // Default placeholder image
+    return Container(
+      height: 200,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.grey[300],
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: const Icon(Icons.camera_alt, size: 50, color: Colors.black54),
+    );
+  }
+
+  // Function to build a trip detail row
   Widget _buildDetail(String label, String? value) {
     return value != null && value.isNotEmpty
         ? Padding(
@@ -97,6 +92,30 @@ class TripDetailsPage extends StatelessWidget {
             child: Text("$label: $value", style: const TextStyle(fontSize: 16)),
           )
         : const SizedBox();
+  }
+
+  // Function to build a section for lists (Friends, Activities)
+  Widget _buildListSection(String title, List<dynamic>? items) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: _headerStyle),
+        const SizedBox(height: 5),
+        if (items != null && items.isNotEmpty)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: items.map<Widget>((item) {
+              return Padding(
+                padding: const EdgeInsets.only(left: 10, bottom: 5),
+                child: Text("• $item", style: const TextStyle(fontSize: 16)),
+              );
+            }).toList(),
+          )
+        else
+          const Text("No data available.",
+              style: TextStyle(color: Colors.grey)),
+      ],
+    );
   }
 
   static const TextStyle _headerStyle =
