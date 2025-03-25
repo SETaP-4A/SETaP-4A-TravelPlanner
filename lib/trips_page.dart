@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import 'package:setap4a/db/database_helper.dart';
+import 'package:setap4a/models/trip.dart';
 import 'trip_details_page.dart';
 
 class TripsPage extends StatefulWidget {
@@ -65,13 +67,13 @@ class _TripsPageState extends State<TripsPage> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          final newTrip = await Navigator.push(
+          Trip newTrip = await Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => AddTripPage()),
           );
-          if (newTrip != null) {
-            _addNewTrip(newTrip);
-          }
+          // if (newTrip != null) {
+          //   _addNewTrip(newTrip);
+          // }
         },
         child: const Icon(Icons.add),
       ),
@@ -140,26 +142,34 @@ class _AddTripPageState extends State<AddTripPage> {
     }
   }
 
-  void _saveTrip() {
+  void _saveTrip() async {
     if (_formKey.currentState!.validate()) {
-      final newTrip = {
-        "destination": _destinationController.text,
-        "date": _dateController.text,
-        "duration": _durationController.text,
-        "name": _nameController.text,
-        "image": _image?.path,
-        "friends": [],
-        "start_date": _dateController.text,
-        "end_date": "", // Can be updated later
-        "vibe": _vibeController.text,
-        "location": _locationController.text,
-        "description": _descriptionController.text,
-        "comments": _commentsController.text,
-        "activities": _activitiesController.text.split(","),
-      };
+      Trip newTrip = Trip(
+        destination: _destinationController.text,
+        date: _dateController.text,
+        duration: _durationController.text,
+        name: _nameController.text,
+        image: _image?.path,  //Can be null   TODO: add img conversion to JSON for cloud storage purposes, so it can be accessed on different devices.
+        friends: [],
+        start_date: _dateController.text,
+        end_date: "", // Can be updated later
+        vibe: _vibeController.text,
+        location: _locationController.text,
+        description: _descriptionController.text,
+        comments: _commentsController.text,
+        activities: _activitiesController.text.split(","),
+      );
+
+      await DatabaseHelper.instance.insertTrip(newTrip);
+      
       Navigator.pop(context, newTrip);
     }
   }
+
+  // get new_trip() async {
+
+  // }
+
 
   @override
   Widget build(BuildContext context) {

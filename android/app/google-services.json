@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "788597551090",
+    "project_id": "setap4a-23a2e",
+    "storage_bucket": "setap4a-23a2e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:788597551090:android:0eb6565934341d5475c56b",
+        "android_client_info": {
+          "package_name": "com.example.setap4a"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAiS6nlnd9t3u-rC5byO5ACWu-StzGOxqs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

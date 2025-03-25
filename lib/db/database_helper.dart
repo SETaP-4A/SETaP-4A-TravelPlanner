@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 import '../models/itinerary.dart';
 import '../models/user.dart';
 import '../models/accommodation.dart';
@@ -9,6 +11,7 @@ import '../models/activity.dart';
 import '../models/packing_list.dart';
 import '../models/notification.dart';
 import '../models/view_option.dart';
+import '../models/trip.dart';
 
 class DatabaseHelper {
   // Private constructor to prevent instantiation
@@ -19,31 +22,38 @@ class DatabaseHelper {
   // Getter for the database. It initialises the database if it's null.
   Future<Database> get database async {
     if (_database != null) return _database!;
-    _database = await _initDatabase();
+    _database = await initDatabase();
     return _database!;
   }
 
   // Initialises the database by providing the path and version.
-  Future<Database> _initDatabase() async {
-    final path = await getDatabasesPath();
+  static Future<Database> initDatabase() async {
+    var factory = databaseFactoryFfiWeb;
+    final path = await factory.getDatabasesPath();
     final dbPath = join(path, 'app_database.db');
 
-    // Debug: Delete the database before creating it (for testing purposes)
-    if (await File(dbPath).exists()) {
-      print('Deleting existing database...');
-      await deleteDatabase(dbPath);
-    }
+    // _onCreate(_database!,1);
+    // return _database!;
 
-    return openDatabase(
+    // Debug: Delete the database before creating it (for testing purposes)
+    // if (await File(dbPath).exists()) {
+    //   print('Deleting existing database...');
+    //   await factory.deleteDatabase(dbPath);
+    // }
+
+    _database = await factory.openDatabase(
       dbPath,
-      version: 1,
-      onCreate: _onCreate,
-      onOpen: _onOpen, // Enable foreign key support
+      options: OpenDatabaseOptions(
+        version: 1,
+        onCreate: _onCreate,
+        onOpen: _onOpen, // Enable foreign key support],
+      )
     );
+    return _database!;
   }
 
   // Called when the database is first created.
-  Future<void> _onCreate(Database db, int version) async {
+  static Future<void> _onCreate(Database db, int version) async {
     print('Creating tables...');
 
     await db.execute('''CREATE TABLE user(
@@ -113,11 +123,28 @@ class DatabaseHelper {
       selectedItineraryItem TEXT
     )''');
 
+    await db.execute('''CREATE TABLE trip(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      destination TEXT,
+      date TEXT,
+      duration TEXT,
+      name TEXT,
+      image TEXT,
+      friends TEXT,
+      start_date TEXT,
+      end_date TEXT,
+      vibe TEXT,
+      location TEXT,
+      description TEXT,
+      comments TEXT,
+      activities TEXT
+    )''');
+
     print('Tables created successfully.');
   }
 
   // Enables foreign key constraints on opening the database
-  Future<void> _onOpen(Database db) async {
+  static Future<void> _onOpen(Database db) async {
     await db.execute('PRAGMA foreign_keys = ON');
     print('Foreign keys enabled.');
   }
@@ -168,6 +195,11 @@ class DatabaseHelper {
   Future<int> insertViewOption(ViewOption viewOption) async {
     Database db = await instance.database;
     return await db.insert('view_option', viewOption.toMap());
+  }
+
+  Future<int> insertTrip(Trip trip) async {
+    Database db = await instance.database;
+    return await db.insert('trip', trip.toMap());
   }
 
   // Load all users

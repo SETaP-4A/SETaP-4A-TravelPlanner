@@ -1,8 +1,20 @@
 // main.dart
 import 'package:flutter/material.dart';
+import 'package:setap4a/db/database_helper.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'firebase_options.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'home_screen.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform
+  );
+
+  await DatabaseHelper.initDatabase();
+
   runApp(TravelApp());
 }
 
