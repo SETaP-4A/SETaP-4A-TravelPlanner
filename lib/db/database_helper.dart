@@ -1,6 +1,7 @@
 import 'dart:io';
-import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_sqlcipher/sqflite.dart';
 import 'package:path/path.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart'; 
 import '../models/itinerary.dart';
 import '../models/user.dart';
 import '../models/accommodation.dart';
@@ -9,13 +10,17 @@ import '../models/activity.dart';
 import '../models/packing_list.dart';
 import '../models/notification.dart';
 import '../models/view_option.dart';
+import 'dart:convert';
+import 'dart:math';
 
 class DatabaseHelper {
   // Private constructor to prevent instantiation
   DatabaseHelper._privateConstructor();
   static final DatabaseHelper instance = DatabaseHelper._privateConstructor();
   static Database? _database;
+  static const _dbVersion = 1;
 
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   // Getter for the database. It initialises the database if it's null.
   Future<Database> get database async {
     if (_database != null) return _database!;
@@ -28,17 +33,25 @@ class DatabaseHelper {
     final path = await getDatabasesPath();
     final dbPath = join(path, 'app_database.db');
 
+    String? password = await _secureStorage.read(key: 'db_password');
+    if (password == null) {
+      password = _generateSecurePassword(); 
+      await _secureStorage.write(key: 'db_password', value: password);
+    }
+    
     // Debug: Delete the database before creating it (for testing purposes)
     if (await File(dbPath).exists()) {
       print('Deleting existing database...');
       await deleteDatabase(dbPath);
     }
 
-    return openDatabase(
+    return await openDatabase(
       dbPath,
-      version: 1,
+      version: _dbVersion,
       onCreate: _onCreate,
+      password: password,
       onOpen: _onOpen, // Enable foreign key support
+
     );
   }
 
@@ -46,19 +59,24 @@ class DatabaseHelper {
   Future<void> _onCreate(Database db, int version) async {
     print('Creating tables...');
 
-    await db.execute('''CREATE TABLE user(
+    await db.execute('''
+      CREATE TABLE user(
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT
-    )''');
+    )
+    ''');
 
-    await db.execute('''CREATE TABLE itinerary(
+    await db.execute('''
+      CREATE TABLE itinerary(
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       title TEXT,
       userId INTEGER,
       FOREIGN KEY (userId) REFERENCES user(id) ON DELETE CASCADE
-    )''');
+    )
+    ''');
 
-    await db.execute('''CREATE TABLE accommodation(
+    await db.execute('''
+      CREATE TABLE accommodation(
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT,
       location TEXT,
@@ -68,7 +86,8 @@ class DatabaseHelper {
       roomType TEXT,
       pricePerNight REAL,
       facilities TEXT
-    )''');
+    )
+    ''');
 
     await db.execute('''CREATE TABLE flight(
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -122,10 +141,24 @@ class DatabaseHelper {
     print('Foreign keys enabled.');
   }
 
+  // Generates a truly random secure password
+  String _generateSecurePassword() {
+  final random = Random.secure();
+  final bytes = List<int>.generate(32, (i) => random.nextInt(256));
+  final base64 = base64Url.encode(bytes);
+  // Ensure the password is exactly 32 characters long and contains only alphanumeric characters
+  return base64.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').substring(0, 32);
+}
+
   // Insert a new user into the 'user' table
   Future<int> insertUser(User user) async {
+    try {
     Database db = await instance.database;
     return await db.insert('user', user.toMap());
+    } catch (e) {
+      print('Error inserting user: $e');
+      rethrow;
+    }
   }
 
   // Insert a new itinerary into the 'itinerary' table
