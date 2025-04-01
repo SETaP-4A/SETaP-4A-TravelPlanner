@@ -249,4 +249,31 @@ class DatabaseHelper {
     Database db = await instance.database;
     return await db.query('view_option');
   }
+  
+  Future<List<Trip>> getTrips() async {
+    final db = await database;
+    final data = await db.query('trip');
+
+    return List.generate(data.length, (i) {
+      return Trip.fromMap(data[i]);
+    });
+  }
+
+  Future<int> deleteTrip(int tripId) async {
+    final db = await database;
+    return await db.delete('trip',
+    where: 'id = ?',
+    whereArgs: [tripId]
+    );
+  }
+
+  Future<int> updateTrip(Trip trip) async {
+    final db = await database;
+    return await db.update(
+      'trip',
+      trip.toMap(),
+      where: 'id = ?',
+      whereArgs: [trip.id],
+    );
+  }
 }

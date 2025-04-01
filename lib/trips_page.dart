@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:setap4a/db/database_helper.dart';
+import 'package:setap4a/edit_trips_page.dart';
 import 'package:setap4a/models/trip.dart';
 import 'trip_details_page.dart';
 
@@ -13,30 +14,10 @@ class TripsPage extends StatefulWidget {
 }
 
 class _TripsPageState extends State<TripsPage> {
-  final List<Map<String, dynamic>> trips = [
-    {
-      "destination": "Paris, France",
-      "date": "March 15, 2025",
-      "duration": "7 days",
-      "name": "Springtime in Paris",
-      "image": "assets/paris.jpg",
-      "friends": ["Alice", "Bob"],
-      "start_date": "March 15, 2025",
-      "end_date": "March 22, 2025",
-      "vibe": "Romantic",
-      "location": "Paris, France",
-      "description":
-          "Exploring the city of love, visiting the Eiffel Tower, and enjoying French cuisine.",
-      "comments":
-          "Excited for this trip! Need to book the Louvre tickets in advance.",
-      "activities": ["Eiffel Tower", "Louvre Museum", "Seine River Cruise"]
-    }
-  ];
 
-  void _addNewTrip(Map<String, dynamic> newTrip) {
-    setState(() {
-      trips.add(newTrip);
-    });
+  @override
+  void initState(){
+    super.initState();
   }
 
   @override
@@ -45,29 +26,50 @@ class _TripsPageState extends State<TripsPage> {
       appBar: AppBar(title: const Text("Upcoming Trips")),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (trips.isNotEmpty)
-              _buildTripCard(context, trips[0], isLarge: true),
-            const SizedBox(height: 20),
-            const Text("Other Trips",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
-            Expanded(
-              child: ListView.builder(
-                itemCount: trips.length - 1,
+        child: StreamBuilder<List<Trip>>(
+          stream: _getTripsStream(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            } else if (snapshot.hasError) {
+              return Center(child: Text('Error: ${snapshot.error}'));
+            } else if (!snapshot.hasData || snapshot.data!.isEmpty){
+              return const Center(child: Text('No Trips Available'));
+            } else {
+              List<Trip> trips = snapshot.data!;
+              return ListView.builder(
+                itemCount: trips.length,
                 itemBuilder: (context, index) {
-                  return _buildTripCard(context, trips[index + 1]);
+                  return _buildTripCard(context, trips[index]);
                 },
-              ),
-            ),
-          ],
+              );
+            }
+          },
         ),
       ),
+      //   Column(
+      //     crossAxisAlignment: CrossAxisAlignment.start,
+      //     children: [
+      //       if (trips.isNotEmpty)
+      //         _buildTripCard(context, trips[0], isLarge: true),
+      //       const SizedBox(height: 20),
+      //       const Text("Other Trips",
+      //           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+      //       const SizedBox(height: 10),
+      //       Expanded(
+      //         child: ListView.builder(
+      //           itemCount: trips.length - 1,
+      //           itemBuilder: (context, index) {
+      //             return _buildTripCard(context, trips[index + 1]);
+      //           },
+      //         ),
+      //       ),
+      //     ],
+      //   ),
+      // ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          Trip newTrip = await Navigator.push(
+          Trip? newTrip = await Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => AddTripPage()),
           );
@@ -80,37 +82,63 @@ class _TripsPageState extends State<TripsPage> {
     );
   }
 
-  Widget _buildTripCard(BuildContext context, Map<String, dynamic> trip,
-      {bool isLarge = false}) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => TripDetailsPage(trip: trip)),
+  Widget _buildTripCard(BuildContext context, Trip trip, {bool isLarge = false}) {
+    // Adds a Drag Feature to remove a trip
+    return Dismissible(
+      key: Key(trip.id.toString()),
+      // Drag from Right to left to delete
+      direction: DismissDirection.endToStart,
+      onDismissed: (direction) async {
+        await DatabaseHelper.instance.deleteTrip(trip.id!);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${trip.name} deleted')),
         );
       },
-      child: Card(
-        elevation: 5,
-        margin: const EdgeInsets.symmetric(vertical: 8),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                trip["destination"]!,
-                style: TextStyle(
-                    fontSize: isLarge ? 22 : 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 5),
-              Text("Date: ${trip["date"]}"),
-              Text("Duration: ${trip["duration"]}"),
-            ],
+      child: GestureDetector(
+        onTap: () async {
+          final updatedTrip = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => EditTripPage(trip: trip), 
+            ),
+          );
+          if (updatedTrip != null) {
+          setState(() {});
+          }
+        },
+        child: Card(
+          elevation: 5,
+          margin: const EdgeInsets.symmetric(vertical: 8),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  trip.destination,
+                  style: TextStyle(
+                      fontSize: isLarge ? 22 : 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 5),
+                Text("Date: ${trip.date}"),
+                Text("Duration: ${trip.duration}"),
+              ],
+            ),
           ),
         ),
       ),
     );
+  }
+  Stream<List<Trip>> _getTripsStream() async* {
+    final db = await DatabaseHelper.instance.database;
+    while (true) {
+      final data = await db.query('trip');
+      yield List.generate(data.length, (i) {
+        return Trip.fromMap(data[i]);
+      });
+      await Future.delayed(const Duration(seconds: 1)); // Update every 1 second
+    }
   }
 }
 
@@ -165,11 +193,6 @@ class _AddTripPageState extends State<AddTripPage> {
       Navigator.pop(context, newTrip);
     }
   }
-
-  // get new_trip() async {
-
-  // }
-
 
   @override
   Widget build(BuildContext context) {
