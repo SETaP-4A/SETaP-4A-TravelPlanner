@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -6,42 +7,93 @@ import 'dart:convert';
 import 'dart:math';
 
 class FirebaseService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   final FlutterSecureStorage _secureStorage = FlutterSecureStorage();
 
-  // User sign-in
-  Future<User?> signInWithEmailPassword(String email, String password) async {
-    try {
-      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      return userCredential.user;
-    } catch (e) {
-      print("Error signing in: $e");
-      return null;
+  // Sync itineraries to Firebase
+  Future<void> syncItineraries(
+      String userId, List<Map<String, dynamic>> itineraries) async {
+    for (var itinerary in itineraries) {
+      try {
+        await _firestore
+            .collection('users')
+            .doc(userId)
+            .collection('itineraries')
+            .add(itinerary);
+        print("Itinerary synced to Firebase successfully.");
+      } catch (e) {
+        print("Error syncing itinerary: $e");
+      }
     }
   }
 
-  // User sign-up
-  Future<User?> signUpWithEmailPassword(String email, String password) async {
-    try {
-      UserCredential userCredential =
-          await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      return userCredential.user;
-    } catch (e) {
-      print("Error signing up: $e");
-      return null;
+  // Sync accommodations to Firebase
+  Future<void> syncAccommodations(
+      String userId, List<Map<String, dynamic>> accommodations) async {
+    for (var accommodation in accommodations) {
+      try {
+        await _firestore
+            .collection('users')
+            .doc(userId)
+            .collection('accommodations')
+            .add(accommodation);
+        print("Accommodation synced to Firebase successfully.");
+      } catch (e) {
+        print("Error syncing accommodation: $e");
+      }
     }
   }
 
-  // User sign-out
-  Future<void> signOut() async {
-    await _auth.signOut();
+  // Sync flights to Firebase
+  Future<void> syncFlights(
+      String userId, List<Map<String, dynamic>> flights) async {
+    for (var flight in flights) {
+      try {
+        await _firestore
+            .collection('users')
+            .doc(userId)
+            .collection('flights')
+            .add(flight);
+        print("Flight synced to Firebase successfully.");
+      } catch (e) {
+        print("Error syncing flight: $e");
+      }
+    }
+  }
+
+  // Sync activities to Firebase
+  Future<void> syncActivities(
+      String userId, List<Map<String, dynamic>> activities) async {
+    for (var activity in activities) {
+      try {
+        await _firestore
+            .collection('users')
+            .doc(userId)
+            .collection('activities')
+            .add(activity);
+        print("Activity synced to Firebase successfully.");
+      } catch (e) {
+        print("Error syncing activity: $e");
+      }
+    }
+  }
+
+  // Sync packing list to Firebase
+  Future<void> syncPackingList(
+      String userId, List<Map<String, dynamic>> packingList) async {
+    for (var item in packingList) {
+      try {
+        await _firestore
+            .collection('users')
+            .doc(userId)
+            .collection('packingList')
+            .add(item);
+        print("Packing List synced to Firebase successfully.");
+      } catch (e) {
+        print("Error syncing packing list: $e");
+      }
+    }
   }
 
   // Generate a new DEK
@@ -84,7 +136,8 @@ class FirebaseService {
   }
 
   // Decrypt data retrieved from Firebase
-  Future<Map<String, dynamic>> decryptData(Map<String, dynamic> encryptedData) async {
+  Future<Map<String, dynamic>> decryptData(
+      Map<String, dynamic> encryptedData) async {
     try {
       final keyString = await _getDataEncryptionKey();
       final key = encrypt.Key.fromBase64(keyString);
@@ -96,7 +149,8 @@ class FirebaseService {
         if (k.endsWith('_iv')) return; // Skip IV keys
         if (v is String && encryptedData.containsKey('${k}_iv')) {
           try {
-            final iv = encrypt.IV.fromBase64(encryptedData['${k}_iv'] as String);
+            final iv =
+                encrypt.IV.fromBase64(encryptedData['${k}_iv'] as String);
             final decrypted = encrypter.decrypt64(v, iv: iv);
             decryptedData[k] = decrypted;
           } catch (e) {
@@ -116,13 +170,15 @@ class FirebaseService {
   }
 
   // Send encrypted data to Firebase
-  Future<void> sendEncryptedData(String collectionName, Map<String, dynamic> data) async {
+  Future<void> sendEncryptedData(
+      String collectionName, Map<String, dynamic> data) async {
     final encryptedData = await encryptData(data);
     await _firestore.collection(collectionName).add(encryptedData);
   }
 
   // Retrieve and decrypt data from Firebase
-  Future<List<Map<String, dynamic>>> getDecryptedData(String collectionName) async {
+  Future<List<Map<String, dynamic>>> getDecryptedData(
+      String collectionName) async {
     final snapshot = await _firestore.collection(collectionName).get();
     List<Map<String, dynamic>> decryptedDataList = [];
 

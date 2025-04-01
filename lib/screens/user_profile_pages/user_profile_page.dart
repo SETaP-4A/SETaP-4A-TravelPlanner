@@ -52,3 +52,32 @@ class AccountPageState extends State<AccountPage> {
     );
   }
 }
+
+
+
+
+// Call signUpWithEmailPassword() when you need to create a new user account with an email and password.
+
+// Call sendEmailVerification() to send a verification email to the user after signing up.
+
+// Call signInWithEmailPassword() when you need to log the user in with their email and password.
+
+// Call signOut() when you need to log the user out of the app.
+
+// Call getCurrentUser() to retrieve the currently authenticated user.
+
+// Call resetPassword() to send a password reset email to the user.
+
+// These are created in auth_service.dart and used in the UI layer of the app.
+
+
+
+
+// After the user is signed in, you can update the AccountPage to display the real user’s name and email.
+
+// For example:
+
+// Text('Name: ${authService.getCurrentUser()?.displayName ?? 'N/A'}'),
+// Text('Email: ${authService.getCurrentUser()?.email ?? 'N/A'}'),
+
+// In this case, authService.getCurrentUser() fetches the currently logged-in user, and if they are not logged in or do not have the displayName, it shows 'N/A'.

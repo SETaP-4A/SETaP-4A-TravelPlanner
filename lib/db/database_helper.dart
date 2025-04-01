@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:sqflite_sqlcipher/sqflite.dart';
 import 'package:path/path.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart'; 
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/itinerary.dart';
 import '../models/user.dart';
 import '../models/accommodation.dart';
@@ -12,6 +12,7 @@ import '../models/notification.dart';
 import '../models/view_option.dart';
 import 'dart:convert';
 import 'dart:math';
+import '../services/firebase_service.dart'; // Import FirebaseService to sync with Firebase
 
 class DatabaseHelper {
   // Private constructor to prevent instantiation
@@ -35,10 +36,10 @@ class DatabaseHelper {
 
     String? password = await _secureStorage.read(key: 'db_password');
     if (password == null) {
-      password = _generateSecurePassword(); 
+      password = _generateSecurePassword();
       await _secureStorage.write(key: 'db_password', value: password);
     }
-    
+
     // Debug: Delete the database before creating it (for testing purposes)
     if (await File(dbPath).exists()) {
       print('Deleting existing database...');
@@ -51,20 +52,18 @@ class DatabaseHelper {
       onCreate: _onCreate,
       password: password,
       onOpen: _onOpen, // Enable foreign key support
-
     );
   }
 
   // Called when the database is first created.
   Future<void> _onCreate(Database db, int version) async {
     print('Creating tables...');
-
-    await db.execute('''
-      CREATE TABLE user(
+    await db.execute('''CREATE TABLE user(
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT
-    )
-    ''');
+      uid TEXT,
+      name TEXT,
+      email TEXT
+    )''');
 
     await db.execute('''
       CREATE TABLE itinerary(
@@ -143,18 +142,18 @@ class DatabaseHelper {
 
   // Generates a truly random secure password
   String _generateSecurePassword() {
-  final random = Random.secure();
-  final bytes = List<int>.generate(32, (i) => random.nextInt(256));
-  final base64 = base64Url.encode(bytes);
-  // Ensure the password is exactly 32 characters long and contains only alphanumeric characters
-  return base64.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').substring(0, 32);
-}
+    final random = Random.secure();
+    final bytes = List<int>.generate(32, (i) => random.nextInt(256));
+    final base64 = base64Url.encode(bytes);
+    // Ensure the password is exactly 32 characters long and contains only alphanumeric characters
+    return base64.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').substring(0, 32);
+  }
 
   // Insert a new user into the 'user' table
   Future<int> insertUser(User user) async {
     try {
-    Database db = await instance.database;
-    return await db.insert('user', user.toMap());
+      Database db = await instance.database;
+      return await db.insert('user', user.toMap());
     } catch (e) {
       print('Error inserting user: $e');
       rethrow;
@@ -249,5 +248,24 @@ class DatabaseHelper {
   Future<List<Map<String, dynamic>>> loadViewOptions() async {
     Database db = await instance.database;
     return await db.query('view_option');
+  }
+
+  // Sync user data to Firebase from SQLite
+  Future<void> syncUserDataToFirebase(String userId) async {
+    List<Map<String, dynamic>> itineraries = await loadItineraries();
+    List<Map<String, dynamic>> accommodations = await loadAccommodations();
+    List<Map<String, dynamic>> flights = await loadFlights();
+    List<Map<String, dynamic>> activities = await loadActivities();
+    List<Map<String, dynamic>> packingList = await loadPackingList();
+
+    FirebaseService firebaseService = FirebaseService();
+
+    await firebaseService.syncItineraries(userId, itineraries);
+    await firebaseService.syncAccommodations(userId, accommodations);
+    await firebaseService.syncFlights(userId, flights);
+    await firebaseService.syncActivities(userId, activities);
+    await firebaseService.syncPackingList(userId, packingList);
+
+    print("Data synced to Firebase successfully.");
   }
 }

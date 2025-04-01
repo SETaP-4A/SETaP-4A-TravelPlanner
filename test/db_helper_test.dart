@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart'; // Import sqflite_common_ffi for local testing (no VM)
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:setap4a/db/database_helper.dart';
 import 'package:setap4a/models/accommodation.dart';
 import 'package:setap4a/models/flight.dart';
@@ -22,20 +22,25 @@ void main() {
       await databaseHelper.database;
     });
 
+    test('Insert a user', () async {
+      final user = User(
+        name: 'John Doe',
+        uid: 'test-uid-123',
+        email: 'johndoe@gmail.com',
+      );
+
+      final id = await databaseHelper.insertUser(user);
+      expect(id, isNotNull);
+    });
+
     test('Insert an itinerary', () async {
-      final db = await DatabaseHelper.instance.database;
+      final db = await databaseHelper.database;
       await db.insert('user', {'id': 1, 'name': 'Test User'});
       final itineraryId = await db.insert('itinerary', {
         'title': 'Test Itinerary',
         'userId': 1,
       });
       expect(itineraryId, isNonZero);
-    });
-
-    test('Insert a user', () async {
-      final user = User(name: 'John Doe');
-      final id = await databaseHelper.insertUser(user);
-      expect(id, isNotNull);
     });
 
     test('Insert an accommodation', () async {
@@ -112,7 +117,7 @@ void main() {
     });
 
     test('Load itineraries', () async {
-      final db = await DatabaseHelper.instance.database;
+      final db = await databaseHelper.database;
       await db.insert('user', {'id': 1, 'name': 'Test User'});
       await db.insert('itinerary', {'title': 'Test Itinerary', 'userId': 1});
       final itineraries = await db.query('itinerary');
@@ -152,16 +157,18 @@ void main() {
     });
 
     test('Prevent inserting itinerary with invalid userId', () async {
-      final db = await DatabaseHelper.instance.database;
+      final db = await databaseHelper.database;
       expect(
-        () async => await db
-            .insert('itinerary', {'title': 'Invalid Itinerary', 'userId': 99}),
+        () async => await db.insert(
+          'itinerary',
+          {'title': 'Invalid Itinerary', 'userId': 99},
+        ),
         throwsA(isA<DatabaseException>()),
       );
     });
 
     test('Update an itinerary title', () async {
-      final db = await DatabaseHelper.instance.database;
+      final db = await databaseHelper.database;
       await db.insert('user', {'id': 1, 'name': 'Test User'});
       final itineraryId =
           await db.insert('itinerary', {'title': 'Old Title', 'userId': 1});
