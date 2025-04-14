@@ -13,7 +13,10 @@ class AccountPageState extends State<AccountPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('name')),
+      appBar: AppBar(
+        title: Text('name'),
+        actions: [IconButton(onPressed: null, icon: Icon(Icons.settings))],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -21,7 +24,7 @@ class AccountPageState extends State<AccountPage> {
           children: [
             const CircleAvatar(
               radius: 50,
-              backgroundImage: AssetImage('/assets/profile_placeholder.png'),
+              backgroundImage: AssetImage('assets/profile_placeholder.png'),
             ),
             const SizedBox(height: 16),
             Text(
@@ -34,11 +37,15 @@ class AccountPageState extends State<AccountPage> {
               style: const TextStyle(fontSize: 18, color: Colors.grey),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {},
-              child: const Text('Share Travel Plans'),
-            ),
+            Align(
+                alignment: Alignment.center,
+                child: SizedBox(
+                  height: 10,
+                  width: MediaQuery.of(context).size.width / 5 * 4,
+                  child: DecoratedBox(
+                      decoration: BoxDecoration(
+                          color: Color.fromARGB(255, 228, 227, 227))),
+                )),
           ],
         ),
       ),

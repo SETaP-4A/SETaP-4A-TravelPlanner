@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'trips_page.dart';
-import 'friends_page.dart';
-import 'explore_page.dart';
-import 'account_page.dart';
+import 'trip_pages/trips_page.dart';
+import 'friend_pages/friends_page.dart';
+import 'explore_pages/explore_page.dart';
+import 'user_profile_pages/user_profile_page.dart';
 // To format and compare dates
 
 class HomeScreen extends StatefulWidget {
@@ -11,11 +11,11 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  Widget _currentPage = TripsPage();
+  Widget currentPage = TripsPage();
 
   void _navigateTo(Widget page) {
     setState(() {
-      _currentPage = page;
+      currentPage = page;
     });
     Navigator.pop(context);
   }
@@ -61,6 +61,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ),
-        body: _currentPage);
+        body: currentPage);
   }
 }
