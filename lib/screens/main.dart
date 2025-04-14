@@ -1,6 +1,6 @@
 // main.dart
 import 'package:flutter/material.dart';
-import 'home_screen.dart';
+import 'login_screen.dart';
 
 void main() {
   runApp(TravelApp());
@@ -21,7 +21,7 @@ class TravelApp extends StatelessWidget {
           bodyMedium: TextStyle(fontSize: 18),
         ),
       ),
-      home: HomeScreen(),
+      home: LoginScreen(),
     );
   }
 }

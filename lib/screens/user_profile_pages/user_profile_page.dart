@@ -14,9 +14,9 @@ class AccountPageState extends State<AccountPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('name'),
-        actions: [IconButton(onPressed: null, icon: Icon(Icons.settings))],
-      ),
+          title: Text('name'),
+          actions: [IconButton(onPressed: null, icon: Icon(Icons.settings))],
+          automaticallyImplyLeading: false),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
