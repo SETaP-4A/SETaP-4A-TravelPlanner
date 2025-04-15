@@ -1,6 +1,6 @@
 import 'dart:ui';
-
 import 'package:flutter/material.dart';
+import 'package:setap4a/services/auth_service.dart'; // Adjust path if needed
 
 class AccountPage extends StatefulWidget {
   const AccountPage({super.key});
@@ -10,13 +10,24 @@ class AccountPage extends StatefulWidget {
 }
 
 class AccountPageState extends State<AccountPage> {
+  final user = AuthService().getCurrentUser();
+
   @override
   Widget build(BuildContext context) {
+    if (user == null) {
+      return Scaffold(
+        body: Center(child: Text('Not logged in')),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
-          title: Text('name'),
-          actions: [IconButton(onPressed: null, icon: Icon(Icons.settings))],
-          automaticallyImplyLeading: false),
+        title: Text(user!.displayName ?? 'Unknown User'),
+        actions: [
+          IconButton(onPressed: null, icon: Icon(Icons.settings)),
+        ],
+        automaticallyImplyLeading: false,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -28,31 +39,33 @@ class AccountPageState extends State<AccountPage> {
             ),
             const SizedBox(height: 16),
             Text(
-              'name',
+              user!.displayName ?? 'No username',
               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
-              'trip',
+              user!.email ?? 'No email',
               style: const TextStyle(fontSize: 18, color: Colors.grey),
               textAlign: TextAlign.center,
             ),
             Align(
-                alignment: Alignment.center,
-                child: SizedBox(
-                  height: 10,
-                  width: MediaQuery.of(context).size.width / 5 * 4,
-                  child: DecoratedBox(
-                      decoration: BoxDecoration(
-                          color: Color.fromARGB(255, 228, 227, 227))),
-                )),
+              alignment: Alignment.center,
+              child: SizedBox(
+                height: 10,
+                width: MediaQuery.of(context).size.width / 5 * 4,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Color.fromARGB(255, 228, 227, 227),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 }
-
 
 
 
