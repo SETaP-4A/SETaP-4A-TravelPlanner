@@ -20,23 +20,24 @@ class ExplorePageState extends State<ExplorePage> {
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(
-          title: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              MaterialButton(
-                  onPressed: () => changeView(exploreTile),
-                  child: Text(
-                    'Explore',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
-                  )),
-              MaterialButton(
-                  onPressed: () => changeView(friendTile),
-                  child: Text('Friends',
+            title: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                MaterialButton(
+                    onPressed: () => changeView(exploreTile),
+                    child: Text(
+                      'Explore',
                       style:
-                          TextStyle(fontWeight: FontWeight.bold, fontSize: 20)))
-            ],
-          ),
-        ),
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                    )),
+                MaterialButton(
+                    onPressed: () => changeView(friendTile),
+                    child: Text('Friends',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 20)))
+              ],
+            ),
+            automaticallyImplyLeading: false),
         body: Align(
             alignment: Alignment.topCenter,
             child: SizedBox(
