@@ -3,6 +3,9 @@ import 'trip_pages/trips_page.dart';
 import 'friend_pages/friends_page.dart';
 import 'explore_pages/explore_page.dart';
 import 'user_profile_pages/user_profile_page.dart';
+import 'package:setap4a/services/auth_service.dart';
+import 'package:setap4a/screens/login_screen.dart';
+
 // To format and compare dates
 
 class HomeScreen extends StatefulWidget {
@@ -24,10 +27,26 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(
-          title: const Text('Travel App',
-              style: TextStyle(fontWeight: FontWeight.bold)),
+          title: const Text(
+            'Travel App',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
           centerTitle: true,
           backgroundColor: Colors.blueAccent,
+          actions: [
+            IconButton(
+              icon: Icon(Icons.logout),
+              tooltip: 'Log out',
+              onPressed: () async {
+                await AuthService().signOut();
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                  (route) => false, // clears back stack
+                );
+              },
+            ),
+          ],
         ),
         drawer: Drawer(
           child: ListView(

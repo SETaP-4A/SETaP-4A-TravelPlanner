@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
-import 'screens/login_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:setap4a/screens/home_screen.dart';
+import 'package:setap4a/screens/login_screen.dart';
+import 'firebase_options.dart'; // make sure this path is correct
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -9,25 +11,33 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  runApp(TravelApp());
+  runApp(MyApp());
 }
 
-class TravelApp extends StatelessWidget {
-  const TravelApp({super.key});
-
+class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Travel App',
+      title: 'Travel Planner',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: Colors.blue,
-        scaffoldBackgroundColor: Colors.blueGrey[50],
-        textTheme: const TextTheme(
-          titleLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          bodyMedium: TextStyle(fontSize: 18),
-        ),
       ),
-      home: LoginScreen(),
+      home: AuthGate(),
     );
+  }
+}
+
+class AuthGate extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+
+    // 🔁 Choose screen based on login state
+    if (user != null) {
+      return HomeScreen();
+    } else {
+      return LoginScreen();
+    }
   }
 }
