@@ -1,3 +1,11 @@
+// INFO FOR DB PPL
+//
+// Currently there is a bunch of placeholder info in the trips list, replace that with the db call.
+// link it all to the map locations and the UI should (hopefully) just work.
+//
+// line 212 is where the 'add trip' code is
+// more detail about it down there
+
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
@@ -110,18 +118,18 @@ class _TripsPageState extends State<TripsPage> {
           ),
         ],
       ),
-      // floatingActionButton: FloatingActionButton(
-      //   onPressed: () async {
-      //     final newTrip = await Navigator.push(
-      //       context,
-      //       MaterialPageRoute(builder: (context) => AddTripPage()),
-      //     );
-      //     if (newTrip != null) {
-      //       _addNewTrip(newTrip);
-      //     }
-      //   },
-      //   child: const Icon(Icons.add),
-      // ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          final newTrip = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => AddTripPage()),
+          );
+          if (newTrip != null) {
+            _addNewTrip(newTrip);
+          }
+        },
+        child: const Icon(Icons.add),
+      ),
     );
   }
 }
@@ -198,6 +206,139 @@ class FeaturedTripCard extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// I assume, could be wrong, but if you just make the view page do the trip call each time it is loaded then that should be best, not sure about loading times is all
+// wont have to make a new trip variable on line 250, thats just there for now
+// everything you need should just be in the saveTrip f(x) tbh
+
+class AddTripPage extends StatefulWidget {
+  const AddTripPage({super.key});
+
+  @override
+  _AddTripPageState createState() => _AddTripPageState();
+}
+
+class _AddTripPageState extends State<AddTripPage> {
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _destinationController = TextEditingController();
+  final TextEditingController _dateController = TextEditingController();
+  final TextEditingController _durationController = TextEditingController();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _locationController = TextEditingController();
+  final TextEditingController _vibeController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();
+  final TextEditingController _commentsController = TextEditingController();
+  final TextEditingController _activitiesController = TextEditingController();
+  File? _image;
+
+  Future<void> _pickImage() async {
+    final pickedFile =
+        await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      setState(() {
+        _image = File(pickedFile.path);
+      });
+    }
+  }
+
+  void _saveTrip() {
+    if (_formKey.currentState!.validate()) {
+      final newTrip = {
+        "destination": _destinationController.text,
+        "date": _dateController.text,
+        "duration": _durationController.text,
+        "name": _nameController.text,
+        "image": _image?.path,
+        "friends": [],
+        "start_date": _dateController.text,
+        "end_date": "", // Can be updated later
+        "vibe": _vibeController.text,
+        "location": _locationController.text,
+        "description": _descriptionController.text,
+        "comments": _commentsController.text,
+        "activities": _activitiesController.text.split(","),
+      };
+
+      // Part where the db will save
+
+      Navigator.pop(context);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Add New Trip")),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildTextField("Destination", _destinationController),
+                _buildTextField("Date", _dateController),
+                _buildTextField("Duration", _durationController),
+                _buildTextField("Trip Name", _nameController),
+                _buildTextField("Location", _locationController),
+                _buildTextField("Vibe", _vibeController),
+                _buildTextField("Description", _descriptionController,
+                    maxLines: 3),
+                _buildTextField("Comments", _commentsController, maxLines: 3),
+                _buildTextField(
+                    "Activities (comma-separated)", _activitiesController),
+                const SizedBox(height: 10),
+                Text("Upload Picture",
+                    style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 5),
+                GestureDetector(
+                  onTap: _pickImage,
+                  child: _image != null
+                      ? Image.file(_image!,
+                          height: 150,
+                          width: double.infinity,
+                          fit: BoxFit.cover)
+                      : Container(
+                          height: 150,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.camera_alt,
+                              size: 50, color: Colors.black54),
+                        ),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: _saveTrip,
+                  child: const Text("Save Trip"),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField(String label, TextEditingController controller,
+      {int maxLines = 1}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: TextFormField(
+        controller: controller,
+        maxLines: maxLines,
+        validator: (value) => value!.isEmpty ? "Please enter $label" : null,
+        decoration: InputDecoration(
+          labelText: label,
+          border: OutlineInputBorder(),
         ),
       ),
     );
