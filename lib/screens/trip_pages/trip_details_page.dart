@@ -1,5 +1,11 @@
+// When getting data for this page, make it refresh each time it is opened because of how the edit page works
+//
+//
+
 import 'package:flutter/material.dart';
 import 'dart:io';
+
+import 'package:setap4a/screens/trip_pages/edit_trip_page.dart';
 
 class TripDetailsPage extends StatelessWidget {
   final Map<String, dynamic> trip;
@@ -9,7 +15,19 @@ class TripDetailsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(trip["name"] ?? "Trip Details")),
+      appBar: AppBar(
+        title: Text(trip["name"] ?? "Trip Details"),
+        actions: [
+          IconButton(
+              onPressed: () {
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => EditTripPage(trip: trip)));
+              },
+              icon: Icon(Icons.edit))
+        ],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -28,7 +46,7 @@ class TripDetailsPage extends StatelessWidget {
             const SizedBox(height: 10),
 
             // Trip Details Section
-            _buildDetail("Destination", trip["destination"]),
+            _buildDetail("DestiNation", trip["destination"]),
             _buildDetail("Start Date", trip["start_date"]),
             _buildDetail("End Date", trip["end_date"]),
             _buildDetail("Duration", trip["duration"]),
