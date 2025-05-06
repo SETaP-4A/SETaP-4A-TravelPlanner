@@ -4,7 +4,6 @@ Repository for group work.
 # How To Set Up:
 
 Download Fork - https://git-fork.com/
-4 Sophie - Click Window > Switch Theme to change it to light mode because we know you love it so much.
 
 Go To:
 https://github.com/kedati1/Software-Engineering-Theory-4A
@@ -44,7 +43,7 @@ Input W/E name you want to call the project (This is the name of the folder)
   
   Click the bottom left drop down arrow and select "Commit and Push"
   
-  Note: If you committed and didnt select "Commit and Push", then u can click the push arrow in the top left.
+  Note: If you committed and didnt select "Commit and Push", then you can click the push arrow in the top left.
 
 # Refreshing Local Project
 To retrieve the most up to date changes and ongoing branches, press the Fetch button on the top left. This will let you see what other people have committed (if anything has been added)
