@@ -53,3 +53,30 @@ If your Main branch is out of date after fetching from the server, click the Pul
 Remote: Origin
 Branch: origin/main
 Click Fetch
+
+
+
+# JDK Setup for Android Builds
+
+This project requires Java 17 to compile the Android app using Gradle.
+
+Step 1 — Download JDK 17
+Download and install JDK 17 (Hotspot) from the following:
+
+Adoptium JDK 17
+
+Choose the version for your platform (ZIP or installer)
+
+Extract or install it to a location of your choice
+
+Step 2 — Point Gradle to the JDK
+If Gradle doesn’t automatically detect your Java install, you’ll need to manually specify the path.
+
+Do this by adding the following line to android/gradle.properties:
+org.gradle.java.home=C:/Users/{YourName}/Downloads/OpenJDK17U-jdk_x64_windows_hotspot_17.0.14_7/jdk-17.0.14+7
+
+E.g.
+org.gradle.java.home=C:/Users/theog/Downloads/OpenJDK17U-jdk_x64_windows_hotspot_17.0.14_7/jdk-17.0.14+7
+
+
+Once that’s done, your Gradle builds should work smoothly for Android.
