@@ -64,16 +64,16 @@ Step 1 — Download JDK 17
 Download and install JDK 17 (Hotspot) from the following:
 
 Adoptium JDK 17
+https://adoptium.net/en-GB/temurin/releases/?version=17
 
 Choose the version for your platform (ZIP or installer)
 
 Extract or install it to a location of your choice
 
 Step 2 — Point Gradle to the JDK
-If Gradle doesn’t automatically detect your Java install, you’ll need to manually specify the path.
+If Gradle doesn’t automatically detect your Java install, you’ll need to manually specify the path. NOTE: ADDING THE PATH VARIABLE CAN BE A POSSIBLE SOLUTION
 
-Do this by adding the following line to android/gradle.properties:
-org.gradle.java.home=C:/Users/{YourName}/Downloads/OpenJDK17U-jdk_x64_windows_hotspot_17.0.14_7/jdk-17.0.14+7
+Do manually add the path:  edit the following line to android/gradle.properties {Line 4} to specify your file path:
 
 E.g.
 org.gradle.java.home=C:/Users/theog/Downloads/OpenJDK17U-jdk_x64_windows_hotspot_17.0.14_7/jdk-17.0.14+7
