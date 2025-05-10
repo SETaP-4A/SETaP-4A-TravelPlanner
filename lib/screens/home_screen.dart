@@ -5,6 +5,7 @@ import 'explore_pages/explore_page.dart';
 import 'user_profile_pages/user_profile_page.dart';
 import 'package:setap4a/services/auth_service.dart';
 import 'package:setap4a/screens/login_screen.dart';
+import 'package:setap4a/screens/debug/local_user_test_screen.dart';
 
 // To format and compare dates
 
@@ -35,6 +36,17 @@ class _HomeScreenState extends State<HomeScreen> {
           backgroundColor: Colors.blueAccent,
           actions: [
             IconButton(
+              icon: Icon(Icons.bug_report),
+              tooltip: 'Test SQLite',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => LocalUserTestScreen()),
+                );
+              },
+            ),
+            IconButton(
               icon: Icon(Icons.logout),
               tooltip: 'Log out',
               onPressed: () async {
@@ -42,7 +54,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(builder: (context) => LoginScreen()),
-                  (route) => false, // clears back stack
+                  (route) => false,
                 );
               },
             ),

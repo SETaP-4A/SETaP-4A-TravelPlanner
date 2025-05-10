@@ -1,9 +1,12 @@
-import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:setap4a/models/user.dart' as app_models;
+import 'package:setap4a/services/auth_service.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/itinerary.dart';
-import '../models/user.dart';
 import '../models/accommodation.dart';
 import '../models/flight.dart';
 import '../models/activity.dart';
@@ -13,6 +16,7 @@ import '../models/view_option.dart';
 import 'dart:convert';
 import 'dart:math';
 import '../services/firebase_service.dart'; // Import FirebaseService to sync with Firebase
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class DatabaseHelper {
   // Private constructor to prevent instantiation
@@ -22,8 +26,12 @@ class DatabaseHelper {
   static const _dbVersion = 1;
 
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+
   // Getter for the database. It initialises the database if it's null.
   Future<Database> get database async {
+    if (kIsWeb) {
+      throw UnsupportedError("SQLite is not supported on Web.");
+    }
     if (_database != null) return _database!;
     _database = await _initDatabase();
     return _database!;
@@ -40,18 +48,12 @@ class DatabaseHelper {
       await _secureStorage.write(key: 'db_password', value: password);
     }
 
-    // Debug: Delete the database before creating it (for testing purposes)
-    if (await File(dbPath).exists()) {
-      print('Deleting existing database...');
-      await deleteDatabase(dbPath);
-    }
-
     return await openDatabase(
       dbPath,
       version: _dbVersion,
       onCreate: _onCreate,
       password: password,
-      onOpen: _onOpen, // Enable foreign key support
+      onOpen: _onOpen,
     );
   }
 
@@ -66,17 +68,24 @@ class DatabaseHelper {
     )''');
 
     await db.execute('''
-      CREATE TABLE itinerary(
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT,
-      userId INTEGER,
-      FOREIGN KEY (userId) REFERENCES user(id) ON DELETE CASCADE
-    )
-    ''');
+  CREATE TABLE itinerary(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    firestoreId TEXT,
+    title TEXT,
+    startDate TEXT,
+    endDate TEXT,
+    location TEXT,
+    description TEXT,
+    comments TEXT,
+    userId INTEGER,
+    FOREIGN KEY (userId) REFERENCES user(id) ON DELETE CASCADE
+  )
+''');
 
     await db.execute('''
       CREATE TABLE accommodation(
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      itineraryFirestoreId TEXT,
       name TEXT,
       location TEXT,
       checkInDate TEXT,
@@ -90,6 +99,7 @@ class DatabaseHelper {
 
     await db.execute('''CREATE TABLE flight(
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      itineraryFirestoreId TEXT,
       airline TEXT,
       flightNumber TEXT,
       departureDateTime TEXT,
@@ -102,6 +112,7 @@ class DatabaseHelper {
 
     await db.execute('''CREATE TABLE activity(
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      itineraryFirestoreId TEXT,
       name TEXT,
       type TEXT,
       location TEXT,
@@ -150,7 +161,13 @@ class DatabaseHelper {
   }
 
   // Insert a new user into the 'user' table
-  Future<int> insertUser(User user) async {
+  Future<int> insertUser(app_models.User user) async {
+    if (kIsWeb) {
+      // You can optionally push user info to Firestore instead here
+      print('Skipping user insert: SQLite not supported on web.');
+      return -1; // Placeholder ID
+    }
+
     try {
       Database db = await instance.database;
       return await db.insert('user', user.toMap());
@@ -162,26 +179,206 @@ class DatabaseHelper {
 
   // Insert a new itinerary into the 'itinerary' table
   Future<int> insertItinerary(Itinerary itinerary) async {
-    Database db = await instance.database;
-    return await db.insert('itinerary', itinerary.toMap());
+    final currentUser = await AuthService.getCurrentLocalUser();
+    final firestore = FirebaseFirestore.instance;
+
+    // Step 1: Always insert into Firestore first
+    final docRef = await firestore
+        .collection('users')
+        .doc(currentUser.uid)
+        .collection('itineraries')
+        .add(itinerary.toMap());
+
+    await docRef
+        .update({'firestoreId': docRef.id}); // Store Firestore ID in doc
+
+    if (kIsWeb) {
+      return -1;
+    } else {
+      // Step 2: Store Firestore ID in SQLite for mobile
+      final itineraryWithId = itinerary.copyWith(firestoreId: docRef.id);
+      final db = await instance.database;
+      return await db.insert('itinerary', itineraryWithId.toMap());
+    }
+  }
+
+  // Update an existing itinerary
+  Future<int> updateItinerary(Itinerary itinerary) async {
+    final firestore = FirebaseFirestore.instance;
+    final currentUser = firebase_auth.FirebaseAuth.instance.currentUser;
+
+    if (kIsWeb) {
+      // Web: Firebase only
+      await firestore
+          .collection('users')
+          .doc(currentUser!.uid)
+          .collection('itineraries')
+          .doc(itinerary.firestoreId)
+          .set(itinerary.toMap());
+      return 1;
+    } else {
+      // Mobile: update SQLite
+      final db = await instance.database;
+      final result = await db.update(
+        'itinerary',
+        itinerary.toMap(),
+        where: 'id = ?',
+        whereArgs: [itinerary.id],
+      );
+
+      // Then sync Firebase
+      await firestore
+          .collection('users')
+          .doc(currentUser!.uid)
+          .collection('itineraries')
+          .doc(itinerary.firestoreId)
+          .set(itinerary.toMap());
+
+      return result;
+    }
+  }
+
+  Future<int> deleteItinerary(Itinerary itinerary) async {
+    final firestore = FirebaseFirestore.instance;
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final uid = currentUser?.uid;
+
+    if (uid == null) {
+      print('❌ No logged-in Firebase user found.');
+      return 0;
+    }
+
+    if (kIsWeb) {
+      try {
+        await firestore
+            .collection('users')
+            .doc(uid)
+            .collection('itineraries')
+            .doc(itinerary.firestoreId)
+            .delete();
+      } catch (e) {
+        print("Failed to delete itinerary from Firestore (Web): $e");
+      }
+      return 1;
+    } else {
+      // Delete from SQLite
+      final db = await instance.database;
+      final result = await db.delete(
+        'itinerary',
+        where: 'id = ?',
+        whereArgs: [itinerary.id],
+      );
+
+      // Also delete from Firestore
+      try {
+        await firestore
+            .collection('users')
+            .doc(uid)
+            .collection('itineraries')
+            .doc(itinerary.firestoreId)
+            .delete();
+      } catch (e) {
+        print("Failed to delete itinerary from Firestore (Android): $e");
+      }
+
+      return result;
+    }
   }
 
   // Insert a new accommodation into the 'accommodation' table
   Future<int> insertAccommodation(Accommodation accommodation) async {
-    Database db = await instance.database;
-    return await db.insert('accommodation', accommodation.toMap());
+    final firestore = FirebaseFirestore.instance;
+    final currentUser = FirebaseAuth.instance.currentUser;
+
+    if (kIsWeb) {
+      // Web: save only to Firebase
+      await firestore
+          .collection('users')
+          .doc(currentUser!.uid)
+          .collection('itineraries')
+          .doc(accommodation.itineraryFirestoreId)
+          .collection('accommodations')
+          .add(accommodation.toMap());
+
+      return -1;
+    } else {
+      // Android: save to SQLite
+      final db = await instance.database;
+      final id = await db.insert('accommodation', accommodation.toMap());
+
+      // Sync to Firebase
+      await firestore
+          .collection('users')
+          .doc(currentUser!.uid)
+          .collection('itineraries')
+          .doc(accommodation.itineraryFirestoreId)
+          .collection('accommodations')
+          .add(accommodation.toMap());
+
+      return id;
+    }
   }
 
   // Insert a new flight into the 'flight' table
   Future<int> insertFlight(Flight flight) async {
-    Database db = await instance.database;
-    return await db.insert('flight', flight.toMap());
+    final firestore = FirebaseFirestore.instance;
+    final currentUser = FirebaseAuth.instance.currentUser;
+
+    if (kIsWeb) {
+      await firestore
+          .collection('users')
+          .doc(currentUser!.uid)
+          .collection('itineraries')
+          .doc(flight.itineraryFirestoreId)
+          .collection('flights')
+          .add(flight.toMap());
+
+      return -1;
+    } else {
+      final db = await instance.database;
+      final id = await db.insert('flight', flight.toMap());
+
+      await firestore
+          .collection('users')
+          .doc(currentUser!.uid)
+          .collection('itineraries')
+          .doc(flight.itineraryFirestoreId)
+          .collection('flights')
+          .add(flight.toMap());
+
+      return id;
+    }
   }
 
   // Insert a new activity into the 'activity' table
   Future<int> insertActivity(Activity activity) async {
-    Database db = await instance.database;
-    return await db.insert('activity', activity.toMap());
+    final firestore = FirebaseFirestore.instance;
+    final currentUser = FirebaseAuth.instance.currentUser;
+
+    if (kIsWeb) {
+      await firestore
+          .collection('users')
+          .doc(currentUser!.uid)
+          .collection('itineraries')
+          .doc(activity.itineraryFirestoreId)
+          .collection('activities')
+          .add(activity.toMap());
+
+      return -1;
+    } else {
+      final db = await instance.database;
+      final id = await db.insert('activity', activity.toMap());
+
+      await firestore
+          .collection('users')
+          .doc(currentUser!.uid)
+          .collection('itineraries')
+          .doc(activity.itineraryFirestoreId)
+          .collection('activities')
+          .add(activity.toMap());
+
+      return id;
+    }
   }
 
   // Insert a new packing list item into the 'packing_list' table
@@ -209,27 +406,97 @@ class DatabaseHelper {
   }
 
   // Load all itineraries
-  Future<List<Map<String, dynamic>>> loadItineraries() async {
-    Database db = await instance.database;
-    return await db.query('itinerary');
+  Future<List<Map<String, dynamic>>> loadItineraries(int userId) async {
+    if (kIsWeb) {
+      throw UnsupportedError("SQLite is not supported on Web.");
+    }
+
+    final db = await instance.database;
+    return await db.query(
+      'itinerary',
+      where: 'userId = ?',
+      whereArgs: [userId],
+    );
   }
 
   // Load all accommodations
-  Future<List<Map<String, dynamic>>> loadAccommodations() async {
-    Database db = await instance.database;
-    return await db.query('accommodation');
+  Future<List<Accommodation>> loadAccommodationsForItinerary(
+      String itineraryFirestoreId) async {
+    if (kIsWeb) {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) throw Exception("No authenticated user");
+
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .collection('accommodations')
+          .where('itineraryFirestoreId', isEqualTo: itineraryFirestoreId)
+          .get();
+
+      return snapshot.docs
+          .map((doc) => Accommodation.fromMap(doc.data()))
+          .toList();
+    } else {
+      final db = await instance.database;
+      final result = await db.query(
+        'accommodation',
+        where: 'itineraryFirestoreId = ?',
+        whereArgs: [itineraryFirestoreId],
+      );
+      return result.map((map) => Accommodation.fromMap(map)).toList();
+    }
   }
 
   // Load all flights
-  Future<List<Map<String, dynamic>>> loadFlights() async {
-    Database db = await instance.database;
-    return await db.query('flight');
+  Future<List<Flight>> loadFlightsForItinerary(
+      String itineraryFirestoreId) async {
+    if (kIsWeb) {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) throw Exception("No authenticated user");
+
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .collection('flights')
+          .where('itineraryFirestoreId', isEqualTo: itineraryFirestoreId)
+          .get();
+
+      return snapshot.docs.map((doc) => Flight.fromMap(doc.data())).toList();
+    } else {
+      final db = await instance.database;
+      final result = await db.query(
+        'flight',
+        where: 'itineraryFirestoreId = ?',
+        whereArgs: [itineraryFirestoreId],
+      );
+      return result.map((map) => Flight.fromMap(map)).toList();
+    }
   }
 
   // Load all activities
-  Future<List<Map<String, dynamic>>> loadActivities() async {
-    Database db = await instance.database;
-    return await db.query('activity');
+  Future<List<Activity>> loadActivitiesForItinerary(
+      String itineraryFirestoreId) async {
+    if (kIsWeb) {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) throw Exception("No authenticated user");
+
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .collection('activities')
+          .where('itineraryFirestoreId', isEqualTo: itineraryFirestoreId)
+          .get();
+
+      return snapshot.docs.map((doc) => Activity.fromMap(doc.data())).toList();
+    } else {
+      final db = await instance.database;
+      final result = await db.query(
+        'activity',
+        where: 'itineraryFirestoreId = ?',
+        whereArgs: [itineraryFirestoreId],
+      );
+      return result.map((map) => Activity.fromMap(map)).toList();
+    }
   }
 
   // Load all packing list items
@@ -251,21 +518,45 @@ class DatabaseHelper {
   }
 
   // Sync user data to Firebase from SQLite
-  Future<void> syncUserDataToFirebase(String userId) async {
-    List<Map<String, dynamic>> itineraries = await loadItineraries();
-    List<Map<String, dynamic>> accommodations = await loadAccommodations();
-    List<Map<String, dynamic>> flights = await loadFlights();
-    List<Map<String, dynamic>> activities = await loadActivities();
-    List<Map<String, dynamic>> packingList = await loadPackingList();
+  Future<void> syncUserDataToFirebase() async {
+    final currentUser = await AuthService.getCurrentLocalUser();
+    final firebaseService = FirebaseService();
 
-    FirebaseService firebaseService = FirebaseService();
+    // Get all itineraries from local DB
+    final itineraryMaps = await loadItineraries(currentUser.id!);
+    final itineraries =
+        itineraryMaps.map((map) => Itinerary.fromMap(map)).toList();
 
-    await firebaseService.syncItineraries(userId, itineraries);
-    await firebaseService.syncAccommodations(userId, accommodations);
-    await firebaseService.syncFlights(userId, flights);
-    await firebaseService.syncActivities(userId, activities);
-    await firebaseService.syncPackingList(userId, packingList);
+    await firebaseService.syncItineraries(currentUser.uid, itineraryMaps);
 
-    print("Data synced to Firebase successfully.");
+    for (final itinerary in itineraries) {
+      final itineraryId = itinerary.firestoreId;
+      if (itineraryId == null) continue;
+
+      // Load and sync linked sub-items
+      final accommodations = await loadAccommodationsForItinerary(itineraryId);
+      final flights = await loadFlightsForItinerary(itineraryId);
+      final activities = await loadActivitiesForItinerary(itineraryId);
+
+      await firebaseService.syncAccommodations(currentUser.uid,
+          accommodations.cast<Map<String, dynamic>>(), itineraryId);
+      await firebaseService.syncFlights(
+        currentUser.uid,
+        flights.map((f) => f.toMap()).toList(),
+        itineraryId,
+      );
+
+      await firebaseService.syncActivities(
+        currentUser.uid,
+        activities.map((a) => a.toMap()).toList(),
+        itineraryId,
+      );
+    }
+
+    // Packing list is not itinerary-scoped (assuming), so sync as usual
+    final packingList = await loadPackingList();
+    await firebaseService.syncPackingList(currentUser.uid, packingList);
+
+    print("✅ Data synced to Firebase successfully.");
   }
 }
