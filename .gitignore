@@ -155,3 +155,4 @@ app.*.symbols
 
 # Ignore Firebase APIKEYS - Breach in Security
 lib/firebase_options.dart
+android/gradle.properties

@@ -1,144 +1,368 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:setap4a/services/firebase_service.dart';
 
-class FriendProfilePage extends StatelessWidget {
-  final String name;
-  final String trip;
-
-  const FriendProfilePage({super.key, required this.name, required this.trip});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(name)),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            const CircleAvatar(
-              radius: 50,
-              backgroundImage: AssetImage('assets/profile_placeholder.png'),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              name,
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              trip,
-              style: const TextStyle(fontSize: 18, color: Colors.grey),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {},
-              child: const Text('Share Travel Plans'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// Update FriendsPage to navigate to FriendProfilePage with Add Friend option
 class FriendsPage extends StatefulWidget {
   @override
   _FriendsPageState createState() => _FriendsPageState();
 }
 
-class _FriendsPageState extends State<FriendsPage> {
-  List<Map<String, String>> friends = [
-    {'name': 'John Doe', 'trip': 'Traveling to Rome'},
-    {'name': 'Jane Smith', 'trip': 'Exploring Thailand'},
-    {'name': 'Alice Johnson', 'trip': 'Backpacking in Peru'},
-  ];
+class _FriendsPageState extends State<FriendsPage>
+    with TickerProviderStateMixin {
+  late TabController _tabController;
+  Map<String, dynamic>? currentUserData;
 
-  void _addFriend() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        String input = '';
-        return AlertDialog(
-          title: const Text('Add Friend'),
-          content: TextField(
-            decoration: const InputDecoration(
-              labelText: 'Enter Profile Link or Details',
-            ),
-            onChanged: (value) => input = value,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                _processFriendInput(input);
-                Navigator.of(context).pop();
-              },
-              child: const Text('Add'),
-            ),
-          ],
-        );
-      },
-    );
-  }
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
 
-  void _processFriendInput(String input) {
-    if (input.startsWith('travelapp://addfriend')) {
-      Uri uri = Uri.parse(input);
-      String? name = uri.queryParameters['name'];
-      String? trip = uri.queryParameters['trip'];
-
-      if (name != null && trip != null) {
-        setState(() {
-          friends.add({'name': name, 'trip': trip});
-        });
-      }
-    } else {
-      List<String> parts = input.split(' - ');
-      if (parts.length == 2) {
-        setState(() {
-          friends.add({'name': parts[0], 'trip': parts[1]});
-        });
-      }
-    }
+    FirebaseService().getCurrentUserInfo().then((data) {
+      setState(() {
+        currentUserData = data;
+      });
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-          automaticallyImplyLeading: false, title: const Text('Friends List')),
-      body: ListView.builder(
-        itemCount: friends.length,
-        itemBuilder: (context, index) {
-          return Card(
-            child: ListTile(
-              title: Text(friends[index]['name']!),
-              subtitle: Text(friends[index]['trip']!),
-              leading: const Icon(Icons.person),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => FriendProfilePage(
-                      name: friends[index]['name']!,
-                      trip: friends[index]['trip']!,
-                    ),
-                  ),
-                );
-              },
+        title: const Text("Friends"),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(icon: Icon(Icons.search), text: "Search"),
+            Tab(icon: Icon(Icons.person_add), text: "Requests"),
+            Tab(icon: Icon(Icons.people), text: "Friends"),
+          ],
+        ),
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                SearchUserTab(),
+                FriendRequestsTab(),
+                FriendsListTab(),
+              ],
             ),
-          );
-        },
+          ),
+        ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _addFriend,
-        child: const Icon(Icons.add),
+    );
+  }
+}
+
+class SearchUserTab extends StatefulWidget {
+  @override
+  _SearchUserTabState createState() => _SearchUserTabState();
+}
+
+class _SearchUserTabState extends State<SearchUserTab> {
+  final TextEditingController _controller = TextEditingController();
+  List<Map<String, dynamic>> searchResults = [];
+  bool loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(() {
+      final query = _controller.text.trim();
+      if (query.length >= 3) {
+        _search(query);
+      } else {
+        setState(() => searchResults = []);
+      }
+    });
+  }
+
+  void _search(String query) async {
+    setState(() => loading = true);
+    try {
+      final results =
+          await FirebaseService().searchUsersStartingWith(query); // <-- NEW
+      setState(() {
+        searchResults = results;
+        loading = false;
+      });
+    } catch (e) {
+      print("❌ Search error: $e");
+      setState(() {
+        searchResults = [];
+        loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          TextField(
+            controller: _controller,
+            decoration: const InputDecoration(
+              labelText: "Search by username",
+              suffixIcon: Icon(Icons.search), // purely visual now
+            ),
+          ),
+          const SizedBox(height: 20),
+          loading
+              ? const CircularProgressIndicator()
+              : searchResults.isEmpty
+                  ? const Text("No users found")
+                  : Expanded(
+                      child: ListView.builder(
+                        itemCount: searchResults.length,
+                        itemBuilder: (context, index) {
+                          final user = searchResults[index];
+                          return ListTile(
+                            title: Text(user['username'] ?? 'Unknown'),
+                            subtitle: Text(user['email'] ?? ''),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.person_add),
+                              onPressed: () async {
+                                final currentUser =
+                                    FirebaseAuth.instance.currentUser;
+                                if (currentUser == null) return;
+
+                                final currentUserDoc = await FirebaseFirestore
+                                    .instance
+                                    .collection('users')
+                                    .doc(currentUser.uid)
+                                    .get();
+
+                                final outgoing = List<String>.from(
+                                    currentUserDoc
+                                            .data()?['outgoingRequests'] ??
+                                        []);
+                                final friends = List<String>.from(
+                                    currentUserDoc.data()?['friends'] ?? []);
+
+                                if (friends.contains(user['uid'])) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content: Text(
+                                            'You are already friends with ${user['username']}')),
+                                  );
+                                } else if (outgoing.contains(user['uid'])) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content: Text(
+                                            'Friend request already sent to ${user['username']}')),
+                                  );
+                                } else {
+                                  await FirebaseService()
+                                      .sendFriendRequest(user['uid']);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content: Text(
+                                            'Friend request sent to ${user['username']}')),
+                                  );
+                                }
+                              },
+                            ),
+                          );
+                        },
+                      ),
+                    )
+        ],
       ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+}
+
+class FriendRequestsTab extends StatefulWidget {
+  @override
+  _FriendRequestsTabState createState() => _FriendRequestsTabState();
+}
+
+class _FriendRequestsTabState extends State<FriendRequestsTab> {
+  late Future<List<Map<String, dynamic>>> _requestsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _requestsFuture = _loadRequests();
+  }
+
+  Future<List<Map<String, dynamic>>> _loadRequests() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return [];
+
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUser.uid)
+        .get();
+    final data = doc.data();
+    final incoming = List<String>.from(data?['incomingRequests'] ?? []);
+    final outgoing = List<String>.from(data?['outgoingRequests'] ?? []);
+
+    final requests = <Map<String, dynamic>>[];
+
+    for (final uid in incoming) {
+      final user = await FirebaseService().getUserByUid(uid);
+      if (user != null) {
+        user['requestType'] = 'incoming';
+        requests.add(user);
+      }
+    }
+
+    for (final uid in outgoing) {
+      final user = await FirebaseService().getUserByUid(uid);
+      if (user != null) {
+        user['requestType'] = 'outgoing';
+        requests.add(user);
+      }
+    }
+
+    return requests;
+  }
+
+  void _handleAccept(String uid) async {
+    await FirebaseService().acceptFriendRequest(uid);
+    setState(() {
+      _requestsFuture = _loadRequests();
+    });
+  }
+
+  void _handleReject(String uid) async {
+    await FirebaseService().rejectFriendRequest(uid);
+    setState(() {
+      _requestsFuture = _loadRequests();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _requestsFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(child: Text("No friend requests"));
+        }
+
+        final requests = snapshot.data!;
+        return ListView.builder(
+          itemCount: requests.length,
+          itemBuilder: (context, index) {
+            final user = requests[index];
+            return ListTile(
+              title: Text(user['username'] ?? 'Unknown'),
+              subtitle: Text(user['requestType'] == 'incoming'
+                  ? "Wants to be your friend"
+                  : "Friend request sent (pending)"),
+              trailing: user['requestType'] == 'incoming'
+                  ? Wrap(
+                      spacing: 8,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.check, color: Colors.green),
+                          onPressed: () => _handleAccept(user['uid']),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.clear, color: Colors.red),
+                          onPressed: () => _handleReject(user['uid']),
+                        ),
+                      ],
+                    )
+                  : null,
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class FriendsListTab extends StatefulWidget {
+  @override
+  _FriendsListTabState createState() => _FriendsListTabState();
+}
+
+class _FriendsListTabState extends State<FriendsListTab> {
+  late Future<List<Map<String, dynamic>>> _friendsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _friendsFuture = FirebaseService().getFriends();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _friendsFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(child: Text("No friends yet"));
+        }
+
+        final friends = snapshot.data!;
+        return ListView.builder(
+          itemCount: friends.length,
+          itemBuilder: (context, index) {
+            final friend = friends[index];
+
+            return ListTile(
+              leading: const Icon(Icons.person),
+              title: Text(friend['username'] ?? 'Unnamed'),
+              subtitle: Text(friend['email'] ?? ''),
+              trailing: IconButton(
+                icon: const Icon(Icons.remove_circle, color: Colors.red),
+                onPressed: () async {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text("Remove Friend"),
+                      content: Text(
+                          "Are you sure you want to remove ${friend['username']}?"),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text("Cancel"),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: const Text("Remove"),
+                        ),
+                      ],
+                    ),
+                  );
+
+                  if (confirm == true) {
+                    await FirebaseService().removeFriend(friend['uid']);
+                    setState(() {
+                      _friendsFuture = FirebaseService().getFriends();
+                    });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('${friend['username']} removed')),
+                    );
+                  }
+                },
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

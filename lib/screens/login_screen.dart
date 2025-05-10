@@ -1,6 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:setap4a/screens/home_screen.dart';
 import 'package:setap4a/screens/register_screen.dart';
+import 'package:setap4a/screens/user_profile_pages/set_username_page.dart';
 import 'package:setap4a/services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -39,16 +41,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> loginWithGoogle() async {
     try {
-      final user = await authService.signInWithGoogle();
+      final result = await authService.signInWithGoogleAndCheckUsername();
+      if (result == null) return;
 
-      if (user != null) {
+      final hasUsername = result['hasUsername'] == true;
+
+      if (hasUsername) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => HomeScreen()),
+          MaterialPageRoute(builder: (_) => HomeScreen()),
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Google login was cancelled')),
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => SetUsernamePage()),
         );
       }
     } catch (e) {

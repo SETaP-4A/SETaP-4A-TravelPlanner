@@ -27,14 +27,16 @@ class AuthService {
       email: email,
       password: password,
     );
-
-    final user = userCredential.user;
+    await userCredential.user?.reload();
+    final user = _auth.currentUser;
     if (user != null) {
       // Save user profile to Firestore
       await _firestore.collection('users').doc(user.uid).set({
         'uid': user.uid,
         'name': name,
         'email': user.email,
+        'username': name,
+        'username_lowercase': name.toLowerCase(),
       });
 
       // Only sync to SQLite on non-web platforms
@@ -92,7 +94,7 @@ class AuthService {
     }
   }
 
-  Future<firebase_auth.User?> signInWithGoogle() async {
+  Future<Map<String, dynamic>?> signInWithGoogleAndCheckUsername() async {
     try {
       final googleSignIn = GoogleSignIn(
         clientId: kIsWeb
@@ -111,34 +113,41 @@ class AuthService {
         idToken: googleAuth.idToken,
       );
 
-      final firebase_auth.UserCredential userCredential =
-          await _auth.signInWithCredential(credential);
-
+      final userCredential = await _auth.signInWithCredential(credential);
       final user = userCredential.user;
+      if (user == null) return null;
 
-      if (user != null) {
-        final displayName = user.displayName ?? "";
-        final email = user.email ?? "";
+      final displayName = user.displayName ?? "";
+      final email = user.email ?? "";
 
-        await _firestore.collection('users').doc(user.uid).set({
-          'uid': user.uid,
-          'name': displayName,
-          'email': email,
-        });
+      final userRef = _firestore.collection('users').doc(user.uid);
 
-        if (!kIsWeb) {
-          await _userProfileService.syncUserProfileToSQLite(
-            local_model.User(uid: user.uid, name: displayName, email: email),
-          );
-        }
+      // Merge ensures no overwrite of existing fields (like username)
+      await userRef.set({
+        'uid': user.uid,
+        'name': displayName,
+        'email': email,
+      }, SetOptions(merge: true));
 
-        final prefs = await SharedPreferences.getInstance();
-        prefs.setString('active_uid', user.uid);
+      final doc = await userRef.get();
+      final hasUsername = doc.data()?['username'] != null;
+
+      // Save locally (if not on web)
+      if (!kIsWeb) {
+        await _userProfileService.syncUserProfileToSQLite(
+          local_model.User(uid: user.uid, name: displayName, email: email),
+        );
       }
 
-      return user;
-    } on firebase_auth.FirebaseAuthException catch (e) {
-      print("Google sign-in error: ${e.message}");
+      final prefs = await SharedPreferences.getInstance();
+      prefs.setString('active_uid', user.uid);
+
+      return {
+        'user': user,
+        'hasUsername': hasUsername,
+      };
+    } catch (e) {
+      print("Google sign-in error: $e");
       rethrow;
     }
   }
@@ -168,5 +177,11 @@ class AuthService {
     } on firebase_auth.FirebaseAuthException catch (e) {
       print("Reset password error: ${e.message}");
     }
+  }
+
+  Future<bool> checkIfUsernameSet(String uid) async {
+    final doc = await _firestore.collection('users').doc(uid).get();
+    final data = doc.data();
+    return data != null && data['username'] != null;
   }
 }
