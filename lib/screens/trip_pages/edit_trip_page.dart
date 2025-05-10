@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
-import 'dart:io';
-import 'package:image_picker/image_picker.dart';
-import 'package:path/path.dart';
+import 'package:intl/intl.dart';
+import 'package:setap4a/db/database_helper.dart';
+import 'package:setap4a/models/itinerary.dart';
+import 'package:setap4a/models/flight.dart';
+import 'package:setap4a/models/accommodation.dart';
+import 'package:setap4a/models/activity.dart';
+import 'package:setap4a/screens/trip_detail_pages.dart/add_accommodation_page.dart';
+import 'package:setap4a/screens/trip_detail_pages.dart/add_activity_page.dart';
+import 'package:setap4a/screens/trip_detail_pages.dart/add_flight_page.dart';
 
 class EditTripPage extends StatefulWidget {
-  final Map<String, dynamic> trip;
+  final Itinerary trip;
 
   const EditTripPage({super.key, required this.trip});
 
@@ -13,105 +19,202 @@ class EditTripPage extends StatefulWidget {
 }
 
 class EditTripPageState extends State<EditTripPage> {
-  late Map<String, dynamic> trip;
-  late Map<String, dynamic> editTrip;
+  final _formKey = GlobalKey<FormState>();
 
-  TextEditingController _destinationController = TextEditingController();
-  TextEditingController _dateController = TextEditingController();
-  TextEditingController _durationController = TextEditingController();
-  TextEditingController _nameController = TextEditingController();
-  TextEditingController _locationController = TextEditingController();
-  TextEditingController _vibeController = TextEditingController();
-  TextEditingController _descriptionController = TextEditingController();
-  TextEditingController _commentsController = TextEditingController();
-  TextEditingController _activitiesController = TextEditingController();
+  late TextEditingController _titleController;
+  late TextEditingController _startDateController;
+  late TextEditingController _endDateController;
+  late TextEditingController _locationController;
+  late TextEditingController _descriptionController;
+  late TextEditingController _commentsController;
+
+  List<Flight> _flights = [];
+  List<Accommodation> _accommodations = [];
+  List<Activity> _activities = [];
 
   @override
   void initState() {
     super.initState();
-
-    trip = widget.trip;
-    _destinationController = TextEditingController(text: trip["destination"]);
-    _dateController = TextEditingController(text: trip["start_date"]);
-    _durationController = TextEditingController(text: trip["duration"]);
-    _nameController = TextEditingController(text: trip["name"]);
-    _locationController = TextEditingController(text: trip["location"]);
-    _vibeController = TextEditingController(text: trip["vibe"]);
-    _descriptionController = TextEditingController(text: trip["description"]);
-    _commentsController = TextEditingController(text: trip["comments"]);
-    _activitiesController =
-        TextEditingController(text: trip["activities"].join(", "));
+    _titleController = TextEditingController(text: widget.trip.title ?? '');
+    _startDateController =
+        TextEditingController(text: widget.trip.startDate ?? '');
+    _endDateController = TextEditingController(text: widget.trip.endDate ?? '');
+    _locationController =
+        TextEditingController(text: widget.trip.location ?? '');
+    _descriptionController =
+        TextEditingController(text: widget.trip.description ?? '');
+    _commentsController =
+        TextEditingController(text: widget.trip.comments ?? '');
+    _loadData();
   }
 
-  final _formKey = GlobalKey<FormState>();
-  File? _image;
+  void _loadData() async {
+    final flights = await DatabaseHelper.instance
+        .loadFlightsForItinerary(widget.trip.firestoreId!);
+    final accommodations = await DatabaseHelper.instance
+        .loadAccommodationsForItinerary(widget.trip.firestoreId!);
+    final activities = await DatabaseHelper.instance
+        .loadActivitiesForItinerary(widget.trip.firestoreId!);
 
-  Future<void> _pickImage() async {
-    final pickedFile =
-        await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      setState(() {
-        _image = File(pickedFile.path);
-      });
+    setState(() {
+      _flights = flights;
+      _accommodations = accommodations;
+      _activities = activities;
+    });
+  }
+
+  Future<void> _pickDate(TextEditingController controller) async {
+    DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime.tryParse(controller.text) ?? DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (pickedDate != null) {
+      controller.text = DateFormat('MMMM dd, yyyy').format(pickedDate);
     }
   }
 
-  void saveTrip(context) {
-    Navigator.pop(context);
+  void _saveTrip() async {
+    final dateFormat = DateFormat('MMMM dd, yyyy');
+    final start = dateFormat.parse(_startDateController.text);
+    final end = dateFormat.parse(_endDateController.text);
+
+    if (start.isAfter(end)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Start date must be before end date')),
+      );
+      return;
+    }
+
+    if (_formKey.currentState!.validate()) {
+      try {
+        final updatedTrip = Itinerary(
+          id: widget.trip.id,
+          firestoreId: widget.trip.firestoreId,
+          title: _titleController.text,
+          startDate: _startDateController.text,
+          endDate: _endDateController.text,
+          location: _locationController.text.isNotEmpty
+              ? _locationController.text
+              : null,
+          description: _descriptionController.text.isNotEmpty
+              ? _descriptionController.text
+              : null,
+          comments: _commentsController.text.isNotEmpty
+              ? _commentsController.text
+              : null,
+          userId: widget.trip.userId,
+        );
+
+        await DatabaseHelper.instance.updateItinerary(updatedTrip);
+        Navigator.pop(context, true);
+      } catch (e) {
+        print('Failed to update trip: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to update trip')),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Add New Trip")),
+      appBar: AppBar(title: const Text("Edit Trip")),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildTextField("Destination", _destinationController),
-                _buildTextField("Date", _dateController),
-                _buildTextField("Duration", _durationController),
-                _buildTextField("Trip Name", _nameController),
-                _buildTextField("Location", _locationController),
-                _buildTextField("Vibe", _vibeController),
-                _buildTextField("Description", _descriptionController,
-                    maxLines: 3),
-                _buildTextField("Comments", _commentsController, maxLines: 3),
-                _buildTextField(
-                  "Activities (comma-separated)",
-                  _activitiesController,
-                ),
-                const SizedBox(height: 10),
-                Text("Upload Picture",
-                    style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 5),
-                GestureDetector(
-                  onTap: _pickImage,
-                  child: _image != null
-                      ? Image.file(_image!,
-                          height: 150,
-                          width: double.infinity,
-                          fit: BoxFit.cover)
-                      : Container(
-                          height: 150,
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[300],
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(Icons.camera_alt,
-                              size: 50, color: Colors.black54),
-                        ),
-                ),
+                _buildTextField('Trip Name', _titleController,
+                    isRequired: true),
+                _buildTextField('Destination', _locationController,
+                    isRequired: true),
+                _buildDateField('Start Date', _startDateController,
+                    isRequired: true),
+                _buildDateField('End Date', _endDateController,
+                    isRequired: true),
+                _buildTextField('Description', _descriptionController),
+                _buildTextField('Comments', _commentsController),
                 const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: () => saveTrip(context),
-                  child: const Text("Save Trip"),
-                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 24),
+
+                    // ✅ Save Changes button (full width)
+                    ElevatedButton(
+                      onPressed: _saveTrip,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        textStyle: const TextStyle(fontSize: 16),
+                      ),
+                      child: const Text('Save Changes'),
+                    ),
+
+                    const SizedBox(height: 30),
+
+                    // ✅ Horizontal row of Add buttons
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.flight),
+                          label: const Text('Flight'),
+                          onPressed: () async {
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => AddFlightPage(
+                                  itineraryFirestoreId:
+                                      widget.trip.firestoreId!,
+                                ),
+                              ),
+                            );
+                            if (result == 'refresh') _loadData();
+                          },
+                        ),
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.hotel),
+                          label: const Text('Accommodation'),
+                          onPressed: () async {
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => AddAccommodationPage(
+                                  itineraryFirestoreId:
+                                      widget.trip.firestoreId!,
+                                ),
+                              ),
+                            );
+                            if (result == 'refresh') _loadData();
+                          },
+                        ),
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.directions_walk),
+                          label: const Text('Activity'),
+                          onPressed: () async {
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => AddActivityPage(
+                                  itineraryFirestoreId:
+                                      widget.trip.firestoreId!,
+                                ),
+                              ),
+                            );
+                            if (result == 'refresh') _loadData();
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                )
               ],
             ),
           ),
@@ -121,16 +224,46 @@ class EditTripPageState extends State<EditTripPage> {
   }
 
   Widget _buildTextField(String label, TextEditingController controller,
-      {int maxLines = 1}) {
+      {bool isRequired = false}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: TextFormField(
         controller: controller,
-        maxLines: maxLines,
-        validator: (value) => value!.isEmpty ? "Please enter $label" : null,
+        validator: (value) {
+          if (isRequired && (value == null || value.trim().isEmpty)) {
+            return 'Please enter $label';
+          }
+          if (label == 'Trip Name' && value!.length > 50) {
+            return 'Trip name too long';
+          }
+          return null;
+        },
         decoration: InputDecoration(
           labelText: label,
-          border: OutlineInputBorder(),
+          border: const OutlineInputBorder(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDateField(String label, TextEditingController controller,
+      {bool isRequired = false}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: TextFormField(
+        controller: controller,
+        readOnly: true,
+        onTap: () => _pickDate(controller),
+        validator: (value) {
+          if (isRequired && (value == null || value.trim().isEmpty)) {
+            return 'Please enter $label';
+          }
+          return null;
+        },
+        decoration: InputDecoration(
+          labelText: label,
+          suffixIcon: const Icon(Icons.calendar_today),
+          border: const OutlineInputBorder(),
         ),
       ),
     );

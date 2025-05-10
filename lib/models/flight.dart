@@ -1,30 +1,32 @@
 class Flight {
-  final int? id;
+  final String? id;
+  final String? itineraryFirestoreId;
   final String airline;
   final String flightNumber;
   final String departureDateTime;
   final String arrivalDateTime;
   final String departureAirport;
   final String arrivalAirport;
-  final String classType;
-  final String seatNumber;
+  final String? classType;
+  final String? seatNumber;
 
   Flight({
     this.id,
+    this.itineraryFirestoreId,
     required this.airline,
     required this.flightNumber,
     required this.departureDateTime,
     required this.arrivalDateTime,
     required this.departureAirport,
     required this.arrivalAirport,
-    required this.classType,
-    required this.seatNumber,
+    this.classType,
+    this.seatNumber,
   });
 
   // Convert a Flight object into a Map
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
+      'itineraryFirestoreId': itineraryFirestoreId,
       'airline': airline,
       'flightNumber': flightNumber,
       'departureDateTime': departureDateTime,
@@ -37,17 +39,18 @@ class Flight {
   }
 
   // Convert a Map into a Flight object
-  factory Flight.fromMap(Map<String, dynamic> map) {
+  factory Flight.fromMap(Map<String, dynamic> map, {String? id}) {
     return Flight(
-      id: map['id'],
-      airline: map['airline'],
-      flightNumber: map['flightNumber'],
-      departureDateTime: map['departureDateTime'],
-      arrivalDateTime: map['arrivalDateTime'],
-      departureAirport: map['departureAirport'],
-      arrivalAirport: map['arrivalAirport'],
-      classType: map['classType'],
-      seatNumber: map['seatNumber'],
+      id: id,
+      itineraryFirestoreId: map['itineraryFirestoreId']?.toString(),
+      airline: map['airline']?.toString() ?? '',
+      flightNumber: map['flightNumber']?.toString() ?? '',
+      departureDateTime: map['departureDateTime']?.toString() ?? '',
+      arrivalDateTime: map['arrivalDateTime']?.toString() ?? '',
+      departureAirport: map['departureAirport']?.toString() ?? '',
+      arrivalAirport: map['arrivalAirport']?.toString() ?? '',
+      classType: map['classType']?.toString(),
+      seatNumber: map['seatNumber']?.toString(),
     );
   }
 }

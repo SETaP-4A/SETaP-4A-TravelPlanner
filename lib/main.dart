@@ -3,7 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:setap4a/screens/home_screen.dart';
 import 'package:setap4a/screens/login_screen.dart';
-import 'firebase_options.dart'; // make sure this path is correct
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
