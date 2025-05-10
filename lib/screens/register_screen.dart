@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter/material.dart';
 import 'package:setap4a/services/auth_service.dart';
 import 'package:setap4a/screens/home_screen.dart';
@@ -72,7 +73,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         username,
       );
 
-      // 🔐 Step 3: Store username link
+      // 🔐 Step 3: Store username link if registration was successful
       if (user != null) {
         await FirebaseFirestore.instance
             .doc('usernames/$username')
@@ -83,10 +84,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
           MaterialPageRoute(builder: (context) => HomeScreen()),
         );
       }
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      setState(() {
+        if (e.code == 'email-already-in-use') {
+          errorMessage = 'This email is already registered.';
+        } else if (e.code == 'invalid-email') {
+          errorMessage = 'Please enter a valid email address.';
+        } else if (e.code == 'weak-password') {
+          errorMessage = 'Password is too weak.';
+        } else {
+          errorMessage = 'Firebase error: ${e.message}';
+        }
+      });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Registration failed: $e')),
-      );
+      setState(() {
+        errorMessage = 'Unexpected error: $e';
+      });
     }
   }
 

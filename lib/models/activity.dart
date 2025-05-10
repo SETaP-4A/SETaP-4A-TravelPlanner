@@ -1,5 +1,6 @@
 class Activity {
-  final int? id;
+  final String? id;
+  final String itineraryFirestoreId;
   final String name;
   final String type;
   final String location;
@@ -9,6 +10,7 @@ class Activity {
 
   Activity({
     this.id,
+    required this.itineraryFirestoreId,
     required this.name,
     required this.type,
     required this.location,
@@ -17,10 +19,22 @@ class Activity {
     required this.notes,
   });
 
-  // Convert an Activity object into a Map
+  factory Activity.fromMap(Map<String, dynamic> map, {String? id}) {
+    return Activity(
+      id: id,
+      itineraryFirestoreId: map['itineraryFirestoreId'],
+      name: map['name'] ?? '',
+      type: map['type'] ?? '',
+      location: map['location'] ?? '',
+      dateTime: map['dateTime'] ?? '',
+      duration: map['duration'] ?? '',
+      notes: map['notes'] ?? '',
+    );
+  }
+
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
+      'itineraryFirestoreId': itineraryFirestoreId,
       'name': name,
       'type': type,
       'location': location,
@@ -28,18 +42,5 @@ class Activity {
       'duration': duration,
       'notes': notes,
     };
-  }
-
-  // Convert a Map into an Activity object
-  factory Activity.fromMap(Map<String, dynamic> map) {
-    return Activity(
-      id: map['id'],
-      name: map['name'],
-      type: map['type'],
-      location: map['location'],
-      dateTime: map['dateTime'],
-      duration: map['duration'],
-      notes: map['notes'],
-    );
   }
 }

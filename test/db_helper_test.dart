@@ -51,8 +51,9 @@ void main() {
         checkOutDate: '2025-04-07',
         bookingConfirmation: 'ABC123',
         roomType: 'Single Room',
-        pricePerNight: '100.0',
+        pricePerNight: 100.0,
         facilities: 'Free Wi-Fi, Pool',
+        itineraryFirestoreId: '',
       );
       final id = await databaseHelper.insertAccommodation(accommodation);
       expect(id, isNotNull);
@@ -81,6 +82,7 @@ void main() {
         dateTime: '2025-04-01 15:00',
         duration: '2 hours',
         notes: 'Bring sunscreen',
+        itineraryFirestoreId: '',
       );
       final id = await databaseHelper.insertActivity(activity);
       expect(id, isNotNull);
@@ -132,11 +134,13 @@ void main() {
         checkOutDate: '2025-04-07',
         bookingConfirmation: 'ABC123',
         roomType: 'Single Room',
-        pricePerNight: '100.0',
+        pricePerNight: double.parse('100.0'),
         facilities: 'Free Wi-Fi, Pool',
+        itineraryFirestoreId: '',
       );
       await databaseHelper.insertAccommodation(accommodation);
-      final accommodations = await databaseHelper.loadAccommodations();
+      final accommodations = await databaseHelper
+          .loadAccommodationsForItinerary('itineraryFirestoreId');
       expect(accommodations, isNotEmpty);
     });
 
@@ -152,7 +156,8 @@ void main() {
         seatNumber: '12A',
       );
       await databaseHelper.insertFlight(flight);
-      final flights = await databaseHelper.loadFlights();
+      final flights =
+          await databaseHelper.loadFlightsForItinerary('itineraryFirestoreId');
       expect(flights, isNotEmpty);
     });
 

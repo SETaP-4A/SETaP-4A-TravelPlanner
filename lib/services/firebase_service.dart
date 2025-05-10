@@ -9,7 +9,7 @@ import 'dart:math';
 class FirebaseService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FlutterSecureStorage _secureStorage = FlutterSecureStorage();
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
   // Sync itineraries to Firebase
   Future<void> syncItineraries(
@@ -21,65 +21,71 @@ class FirebaseService {
             .doc(userId)
             .collection('itineraries')
             .add(itinerary);
-        print("Itinerary synced to Firebase successfully.");
+        print("✅ Itinerary synced to Firebase.");
       } catch (e) {
-        print("Error syncing itinerary: $e");
+        print("❌ Error syncing itinerary: $e");
       }
     }
   }
 
-  // Sync accommodations to Firebase
-  Future<void> syncAccommodations(
-      String userId, List<Map<String, dynamic>> accommodations) async {
+  // Sync accommodations to Firebase under a specific itinerary
+  Future<void> syncAccommodations(String userId,
+      List<Map<String, dynamic>> accommodations, String itineraryId) async {
     for (var accommodation in accommodations) {
       try {
         await _firestore
             .collection('users')
             .doc(userId)
+            .collection('itineraries')
+            .doc(itineraryId)
             .collection('accommodations')
             .add(accommodation);
-        print("Accommodation synced to Firebase successfully.");
+        print("✅ Accommodation synced to Firebase.");
       } catch (e) {
-        print("Error syncing accommodation: $e");
+        print("❌ Error syncing accommodation: $e");
       }
     }
   }
 
-  // Sync flights to Firebase
-  Future<void> syncFlights(
-      String userId, List<Map<String, dynamic>> flights) async {
+  // Sync flights to Firebase under a specific itinerary
+  Future<void> syncFlights(String userId, List<Map<String, dynamic>> flights,
+      String itineraryId) async {
     for (var flight in flights) {
       try {
         await _firestore
             .collection('users')
             .doc(userId)
+            .collection('itineraries')
+            .doc(itineraryId)
             .collection('flights')
             .add(flight);
-        print("Flight synced to Firebase successfully.");
+        print("✅ Flight synced to Firebase.");
       } catch (e) {
-        print("Error syncing flight: $e");
+        print("❌ Error syncing flight: $e");
       }
     }
   }
 
-  // Sync activities to Firebase
-  Future<void> syncActivities(
-      String userId, List<Map<String, dynamic>> activities) async {
+  // Sync activities to Firebase under a specific itinerary
+  Future<void> syncActivities(String userId,
+      List<Map<String, dynamic>> activities, String itineraryId) async {
     for (var activity in activities) {
       try {
         await _firestore
             .collection('users')
             .doc(userId)
+            .collection('itineraries')
+            .doc(itineraryId)
             .collection('activities')
             .add(activity);
-        print("Activity synced to Firebase successfully.");
+        print("✅ Activity synced to Firebase.");
       } catch (e) {
-        print("Error syncing activity: $e");
+        print("❌ Error syncing activity: $e");
       }
     }
   }
 
-  // Sync packing list to Firebase
+  // Packing list is not itinerary-specific (assuming)
   Future<void> syncPackingList(
       String userId, List<Map<String, dynamic>> packingList) async {
     for (var item in packingList) {
@@ -89,9 +95,9 @@ class FirebaseService {
             .doc(userId)
             .collection('packingList')
             .add(item);
-        print("Packing List synced to Firebase successfully.");
+        print("✅ Packing list item synced to Firebase.");
       } catch (e) {
-        print("Error syncing packing list: $e");
+        print("❌ Error syncing packing list: $e");
       }
     }
   }
