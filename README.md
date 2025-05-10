@@ -79,4 +79,7 @@ E.g.
 org.gradle.java.home=C:/Users/theog/Downloads/OpenJDK17U-jdk_x64_windows_hotspot_17.0.14_7/jdk-17.0.14+7
 
 
+# NOTE: IF THE android/gradle.properties DOESNT EXIST WITHIN THE ROOT DIR, YOU CAN DOWNLOAD A COPY AT: 
+https://drive.google.com/file/d/1dApglPQtSQqhCjMZlPZqHV6GbYbvkDiS/view?usp=sharing 
+
 Once that’s done, your Gradle builds should work smoothly for Android.
