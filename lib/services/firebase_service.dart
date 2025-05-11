@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:encrypt/encrypt.dart' as encrypt;
 import 'dart:convert';
@@ -11,7 +11,6 @@ class FirebaseService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
-  // Sync itineraries to Firebase
   Future<void> syncItineraries(
       String userId, List<Map<String, dynamic>> itineraries) async {
     for (var itinerary in itineraries) {
@@ -28,7 +27,6 @@ class FirebaseService {
     }
   }
 
-  // Sync accommodations to Firebase under a specific itinerary
   Future<void> syncAccommodations(String userId,
       List<Map<String, dynamic>> accommodations, String itineraryId) async {
     for (var accommodation in accommodations) {
@@ -47,7 +45,6 @@ class FirebaseService {
     }
   }
 
-  // Sync flights to Firebase under a specific itinerary
   Future<void> syncFlights(String userId, List<Map<String, dynamic>> flights,
       String itineraryId) async {
     for (var flight in flights) {
@@ -66,7 +63,6 @@ class FirebaseService {
     }
   }
 
-  // Sync activities to Firebase under a specific itinerary
   Future<void> syncActivities(String userId,
       List<Map<String, dynamic>> activities, String itineraryId) async {
     for (var activity in activities) {
@@ -85,7 +81,6 @@ class FirebaseService {
     }
   }
 
-  // Packing list is not itinerary-specific (assuming)
   Future<void> syncPackingList(
       String userId, List<Map<String, dynamic>> packingList) async {
     for (var item in packingList) {
@@ -102,14 +97,215 @@ class FirebaseService {
     }
   }
 
-  // Generate a new DEK
+  Future<Map<String, dynamic>?> getCurrentUserInfo() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return null;
+
+    final doc = await _firestore.collection('users').doc(user.uid).get();
+    return doc.exists ? doc.data() : null;
+  }
+
+  Future<List<Map<String, dynamic>>> searchUsersByUsername(String query) async {
+    print("🔍 Searching for username: $query");
+
+    if (query.isEmpty) return [];
+
+    final usernameDoc =
+        await _firestore.collection('usernames').doc(query).get();
+
+    if (!usernameDoc.exists) {
+      print("❌ Username not found in 'usernames' collection.");
+      return [];
+    }
+
+    final uid = usernameDoc['uid'];
+    print("✅ Found UID: $uid for username: $query");
+
+    final userDoc = await _firestore.collection('users').doc(uid).get();
+
+    if (!userDoc.exists) {
+      print("❌ UID $uid not found in 'users' collection.");
+      return [];
+    }
+
+    final data = userDoc.data();
+    print("✅ Final user data: $data");
+
+    return [data!..['uid'] = uid];
+  }
+
+  Future<List<String>> getIncomingRequests() async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) throw Exception("Not logged in");
+
+    final doc = await _firestore.collection('users').doc(currentUser.uid).get();
+    return List<String>.from(doc.data()?['incomingRequests'] ?? []);
+  }
+
+  Future<Map<String, dynamic>?> getUserByUid(String uid) async {
+    final doc = await _firestore.collection('users').doc(uid).get();
+    return doc.exists ? {'uid': doc.id, ...doc.data()!} : null;
+  }
+
+  Future<List<Map<String, dynamic>>> searchUsersStartingWith(
+      String prefix) async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return [];
+
+    final lowerPrefix = prefix.toLowerCase();
+
+    final querySnapshot = await _firestore
+        .collection('users')
+        .where('username_lowercase', isGreaterThanOrEqualTo: lowerPrefix)
+        .where('username_lowercase', isLessThan: lowerPrefix + 'z')
+        .get();
+
+    return querySnapshot.docs
+        .where((doc) => doc.id != currentUser.uid)
+        .map((doc) => {'uid': doc.id, ...doc.data()!})
+        .toList();
+  }
+
+  Future<void> sendFriendRequest(String targetUid) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) throw Exception("User not logged in");
+
+    final currentUserDoc = _firestore.collection('users').doc(currentUser.uid);
+    final targetUserDoc = _firestore.collection('users').doc(targetUid);
+
+    await _firestore.runTransaction((txn) async {
+      final senderSnap = await txn.get(currentUserDoc);
+      final targetSnap = await txn.get(targetUserDoc);
+
+      final senderData = senderSnap.data() ?? {};
+      final targetData = targetSnap.data() ?? {};
+
+      final senderOutgoing =
+          List<String>.from(senderData['outgoingRequests'] ?? []);
+      final targetIncoming =
+          List<String>.from(targetData['incomingRequests'] ?? []);
+      final senderFriends = List<String>.from(senderData['friends'] ?? []);
+
+      if (senderOutgoing.contains(targetUid) ||
+          senderFriends.contains(targetUid)) {
+        throw Exception(
+            "Friend request already sent or you're already friends.");
+      }
+
+      senderOutgoing.add(targetUid);
+      targetIncoming.add(currentUser.uid);
+
+      txn.update(currentUserDoc, {'outgoingRequests': senderOutgoing});
+      txn.update(targetUserDoc, {'incomingRequests': targetIncoming});
+    });
+  }
+
+  Future<void> acceptFriendRequest(String fromUid) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) throw Exception("User not logged in");
+
+    final currentUserDoc = _firestore.collection('users').doc(currentUser.uid);
+    final fromUserDoc = _firestore.collection('users').doc(fromUid);
+
+    await _firestore.runTransaction((txn) async {
+      final currentSnap = await txn.get(currentUserDoc);
+      final fromSnap = await txn.get(fromUserDoc);
+
+      final currentFriends =
+          List<String>.from(currentSnap.data()?['friends'] ?? []);
+      final fromFriends = List<String>.from(fromSnap.data()?['friends'] ?? []);
+
+      final incoming =
+          List<String>.from(currentSnap.data()?['incomingRequests'] ?? []);
+      final outgoing =
+          List<String>.from(fromSnap.data()?['outgoingRequests'] ?? []);
+
+      if (!currentFriends.contains(fromUid)) currentFriends.add(fromUid);
+      if (!fromFriends.contains(currentUser.uid))
+        fromFriends.add(currentUser.uid);
+
+      incoming.remove(fromUid);
+      outgoing.remove(currentUser.uid);
+
+      txn.update(currentUserDoc,
+          {'friends': currentFriends, 'incomingRequests': incoming});
+
+      txn.update(
+          fromUserDoc, {'friends': fromFriends, 'outgoingRequests': outgoing});
+    });
+  }
+
+  Future<void> rejectFriendRequest(String fromUid) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) throw Exception("User not logged in");
+
+    final currentUserDoc = _firestore.collection('users').doc(currentUser.uid);
+    final fromUserDoc = _firestore.collection('users').doc(fromUid);
+
+    await _firestore.runTransaction((txn) async {
+      final currentSnap = await txn.get(currentUserDoc);
+      final fromSnap = await txn.get(fromUserDoc);
+
+      final incoming =
+          List<String>.from(currentSnap.data()?['incomingRequests'] ?? []);
+      final outgoing =
+          List<String>.from(fromSnap.data()?['outgoingRequests'] ?? []);
+
+      incoming.remove(fromUid);
+      outgoing.remove(currentUser.uid);
+
+      txn.update(currentUserDoc, {'incomingRequests': incoming});
+      txn.update(fromUserDoc, {'outgoingRequests': outgoing});
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> getFriends() async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) throw Exception("User not logged in");
+
+    final userDoc =
+        await _firestore.collection('users').doc(currentUser.uid).get();
+    final friendUids = List<String>.from(userDoc.data()?['friends'] ?? []);
+
+    final friends = <Map<String, dynamic>>[];
+    for (String uid in friendUids) {
+      final friendDoc = await _firestore.collection('users').doc(uid).get();
+      if (friendDoc.exists) friends.add(friendDoc.data()!);
+    }
+
+    return friends;
+  }
+
+  Future<void> removeFriend(String friendUid) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) throw Exception("User not logged in");
+
+    final currentUserDoc = _firestore.collection('users').doc(currentUser.uid);
+    final friendUserDoc = _firestore.collection('users').doc(friendUid);
+
+    await _firestore.runTransaction((txn) async {
+      final currentSnap = await txn.get(currentUserDoc);
+      final friendSnap = await txn.get(friendUserDoc);
+
+      final currentFriends =
+          List<String>.from(currentSnap.data()?['friends'] ?? []);
+      final friendFriends =
+          List<String>.from(friendSnap.data()?['friends'] ?? []);
+
+      currentFriends.remove(friendUid);
+      friendFriends.remove(currentUser.uid);
+
+      txn.update(currentUserDoc, {'friends': currentFriends});
+      txn.update(friendUserDoc, {'friends': friendFriends});
+    });
+  }
+
   String _generateDataEncryptionKey() {
     final random = Random.secure();
     final bytes = List<int>.generate(32, (_) => random.nextInt(256));
     return base64Url.encode(bytes);
   }
 
-  // Get or generate the DEK
   Future<String> _getDataEncryptionKey() async {
     String? key = await _secureStorage.read(key: 'data_encryption_key');
     if (key == null) {
@@ -119,7 +315,6 @@ class FirebaseService {
     return key;
   }
 
-  // Encrypt data before sending to Firebase
   Future<Map<String, String>> encryptData(Map<String, dynamic> data) async {
     final keyString = await _getDataEncryptionKey();
     final key = encrypt.Key.fromBase64(keyString);
@@ -129,10 +324,10 @@ class FirebaseService {
 
     data.forEach((k, v) {
       if (v is String) {
-        final iv = encrypt.IV.fromSecureRandom(16); // Generate IV per field
+        final iv = encrypt.IV.fromSecureRandom(16);
         final encrypted = encrypter.encrypt(v, iv: iv);
         encryptedData[k] = encrypted.base64;
-        encryptedData['${k}_iv'] = iv.base64; // Store IV per field
+        encryptedData['${k}_iv'] = iv.base64;
       } else {
         encryptedData[k] = v.toString();
       }
@@ -141,7 +336,6 @@ class FirebaseService {
     return encryptedData;
   }
 
-  // Decrypt data retrieved from Firebase
   Future<Map<String, dynamic>> decryptData(
       Map<String, dynamic> encryptedData) async {
     try {
@@ -152,7 +346,7 @@ class FirebaseService {
       Map<String, dynamic> decryptedData = {};
 
       encryptedData.forEach((k, v) {
-        if (k.endsWith('_iv')) return; // Skip IV keys
+        if (k.endsWith('_iv')) return;
         if (v is String && encryptedData.containsKey('${k}_iv')) {
           try {
             final iv =
@@ -175,14 +369,12 @@ class FirebaseService {
     }
   }
 
-  // Send encrypted data to Firebase
   Future<void> sendEncryptedData(
       String collectionName, Map<String, dynamic> data) async {
     final encryptedData = await encryptData(data);
     await _firestore.collection(collectionName).add(encryptedData);
   }
 
-  // Retrieve and decrypt data from Firebase
   Future<List<Map<String, dynamic>>> getDecryptedData(
       String collectionName) async {
     final snapshot = await _firestore.collection(collectionName).get();

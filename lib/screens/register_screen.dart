@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter/material.dart';
 import 'package:setap4a/services/auth_service.dart';
 import 'package:setap4a/screens/home_screen.dart';
+import 'package:setap4a/screens/user_profile_pages/set_username_page.dart';
 
 class RegisterScreen extends StatefulWidget {
   @override
@@ -66,18 +67,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return;
       }
 
-      // ✅ Step 2: Register user
       final user = await authService.signUpWithEmailPassword(
         email,
         password,
         username,
       );
 
-      // 🔐 Step 3: Store username link if registration was successful
-      if (user != null) {
+// ✅ Re-fetch user to ensure it's authenticated in the session (especially on web)
+      final currentUser = firebase_auth.FirebaseAuth.instance.currentUser;
+
+      if (user != null && currentUser != null) {
         await FirebaseFirestore.instance
             .doc('usernames/$username')
-            .set({'uid': user.uid});
+            .set({'uid': currentUser.uid});
 
         Navigator.pushReplacement(
           context,
@@ -105,20 +107,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> registerWithGoogle() async {
     try {
-      final user = await authService.signInWithGoogle();
+      final result = await authService.signInWithGoogleAndCheckUsername();
+      if (result == null) return;
 
-      if (user != null &&
-          (user.displayName == null || user.displayName!.isEmpty)) {
-        String? username = await _promptForUsername();
-        if (username != null && username.isNotEmpty) {
-          await user.updateDisplayName(username);
-        }
+      final hasUsername = result['hasUsername'] == true;
+
+      if (hasUsername) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => HomeScreen()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => SetUsernamePage()),
+        );
       }
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => HomeScreen()),
-      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Google sign-in failed: $e')),

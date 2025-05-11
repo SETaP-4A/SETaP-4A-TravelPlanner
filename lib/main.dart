@@ -18,27 +18,20 @@ void main() async {
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+
     return MaterialApp(
       title: 'Travel Planner',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: AuthGate(),
+      initialRoute: user != null ? '/home' : '/login',
+      routes: {
+        '/home': (context) => HomeScreen(),
+        '/login': (context) => LoginScreen(),
+        // Add more here if needed
+      },
     );
-  }
-}
-
-class AuthGate extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-
-    // 🔁 Choose screen based on login state
-    if (user != null) {
-      return HomeScreen();
-    } else {
-      return LoginScreen();
-    }
   }
 }
