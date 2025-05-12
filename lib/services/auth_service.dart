@@ -27,19 +27,14 @@ class AuthService {
       email: email,
       password: password,
     );
-    await userCredential.user?.reload();
-    final user = _auth.currentUser;
-    if (user != null) {
-      // Save user profile to Firestore
-      await _firestore.collection('users').doc(user.uid).set({
-        'uid': user.uid,
-        'name': name,
-        'email': user.email,
-        'username': name,
-        'username_lowercase': name.toLowerCase(),
-      });
 
-      // Only sync to SQLite on non-web platforms
+    final user = userCredential.user;
+    if (user != null) {
+      // ✅ Store current UID
+      final prefs = await SharedPreferences.getInstance();
+      prefs.setString('active_uid', user.uid);
+
+      // ✅ Optionally sync to SQLite
       if (!kIsWeb) {
         await _userProfileService.syncUserProfileToSQLite(local_model.User(
           uid: user.uid,
@@ -47,10 +42,6 @@ class AuthService {
           email: user.email ?? "",
         ));
       }
-
-      // ✅ Store current UID in shared preferences
-      final prefs = await SharedPreferences.getInstance();
-      prefs.setString('active_uid', user.uid);
 
       return user;
     }

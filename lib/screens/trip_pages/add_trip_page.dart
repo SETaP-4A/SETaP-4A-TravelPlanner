@@ -78,6 +78,7 @@ class _AddTripPageState extends State<AddTripPage> {
                 ? null
                 : _commentsController.text.trim(),
             userId: null,
+            ownerUid: uid,
           ).toMap();
 
           await firestore
@@ -101,6 +102,7 @@ class _AddTripPageState extends State<AddTripPage> {
                 ? null
                 : _commentsController.text.trim(),
             userId: currentUser.id,
+            ownerUid: currentUser.uid,
           );
 
           await DatabaseHelper.instance.insertItinerary(newTrip);

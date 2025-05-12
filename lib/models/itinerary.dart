@@ -7,7 +7,10 @@ class Itinerary {
   String? location;
   String? description;
   String? comments;
-  int? userId;
+  int? userId; // local DB id
+  String? ownerUid; // Firebase UID
+  List<String>? collaborators;
+  final String? permission; // 'viewer' or 'editor'
 
   Itinerary({
     this.id,
@@ -19,6 +22,9 @@ class Itinerary {
     this.description,
     this.comments,
     this.userId,
+    this.ownerUid,
+    this.collaborators,
+    this.permission,
   });
 
   Map<String, dynamic> toMap() {
@@ -32,6 +38,9 @@ class Itinerary {
       'description': description,
       'comments': comments,
       'userId': userId,
+      'ownerUid': ownerUid,
+      'collaborators': collaborators,
+      'permission': permission,
     };
   }
 
@@ -46,10 +55,15 @@ class Itinerary {
       description: map['description'],
       comments: map['comments'],
       userId: map['userId'],
+      ownerUid: map['ownerUid'],
+      collaborators: map['collaborators'] != null
+          ? List<String>.from(map['collaborators'])
+          : [],
+      permission: map['permission'],
     );
   }
 
-  Itinerary copyWith({String? firestoreId}) {
+  Itinerary copyWith({String? firestoreId, List<String>? collaborators}) {
     return Itinerary(
       id: id,
       firestoreId: firestoreId ?? this.firestoreId,
@@ -60,6 +74,9 @@ class Itinerary {
       description: description,
       comments: comments,
       userId: userId,
+      ownerUid: ownerUid,
+      collaborators: collaborators ?? this.collaborators,
+      permission: permission,
     );
   }
 }

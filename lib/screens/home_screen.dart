@@ -36,17 +36,6 @@ class _HomeScreenState extends State<HomeScreen> {
           backgroundColor: Colors.blueAccent,
           actions: [
             IconButton(
-              icon: Icon(Icons.bug_report),
-              tooltip: 'Test SQLite',
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => LocalUserTestScreen()),
-                );
-              },
-            ),
-            IconButton(
               icon: Icon(Icons.logout),
               tooltip: 'Log out',
               onPressed: () async {

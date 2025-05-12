@@ -1,6 +1,6 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:setap4a/services/auth_service.dart'; // Adjust path if needed
+import 'package:setap4a/services/auth_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AccountPage extends StatefulWidget {
   const AccountPage({super.key});
@@ -11,21 +11,51 @@ class AccountPage extends StatefulWidget {
 
 class AccountPageState extends State<AccountPage> {
   final user = AuthService().getCurrentUser();
+  String? username;
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUsernameFromUID();
+  }
+
+  Future<void> _fetchUsernameFromUID() async {
+    if (user == null) return;
+
+    final snapshot =
+        await FirebaseFirestore.instance.collection('usernames').get();
+    for (final doc in snapshot.docs) {
+      if (doc.data()['uid'] == user!.uid) {
+        setState(() {
+          username = doc.id;
+          isLoading = false;
+        });
+        return;
+      }
+    }
+
+    // Fallback if UID not found in usernames
+    setState(() {
+      username = 'No username';
+      isLoading = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     if (user == null) {
-      return Scaffold(
-        body: Center(child: Text('Not logged in')),
-      );
+      return const Scaffold(body: Center(child: Text('Not logged in')));
+    }
+
+    if (isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(user!.displayName ?? 'Unknown User'),
-        actions: [
-          IconButton(onPressed: null, icon: Icon(Icons.settings)),
-        ],
+        title: Text(username ?? 'Unknown User'),
+        actions: [IconButton(onPressed: null, icon: Icon(Icons.settings))],
         automaticallyImplyLeading: false,
       ),
       body: Padding(
@@ -35,11 +65,12 @@ class AccountPageState extends State<AccountPage> {
           children: [
             const CircleAvatar(
               radius: 50,
-              backgroundImage: AssetImage('assets/profile_placeholder.png'),
+              backgroundColor: Colors.purpleAccent,
+              child: Icon(Icons.person, size: 50, color: Colors.white),
             ),
             const SizedBox(height: 16),
             Text(
-              user!.displayName ?? 'No username',
+              username ?? 'No username',
               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
@@ -53,10 +84,9 @@ class AccountPageState extends State<AccountPage> {
               child: SizedBox(
                 height: 10,
                 width: MediaQuery.of(context).size.width / 5 * 4,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: Color.fromARGB(255, 228, 227, 227),
-                  ),
+                child: const DecoratedBox(
+                  decoration:
+                      BoxDecoration(color: Color.fromARGB(255, 228, 227, 227)),
                 ),
               ),
             ),
@@ -66,31 +96,3 @@ class AccountPageState extends State<AccountPage> {
     );
   }
 }
-
-
-
-// Call signUpWithEmailPassword() when you need to create a new user account with an email and password.
-
-// Call sendEmailVerification() to send a verification email to the user after signing up.
-
-// Call signInWithEmailPassword() when you need to log the user in with their email and password.
-
-// Call signOut() when you need to log the user out of the app.
-
-// Call getCurrentUser() to retrieve the currently authenticated user.
-
-// Call resetPassword() to send a password reset email to the user.
-
-// These are created in auth_service.dart and used in the UI layer of the app.
-
-
-
-
-// After the user is signed in, you can update the AccountPage to display the real user’s name and email.
-
-// For example:
-
-// Text('Name: ${authService.getCurrentUser()?.displayName ?? 'N/A'}'),
-// Text('Email: ${authService.getCurrentUser()?.email ?? 'N/A'}'),
-
-// In this case, authService.getCurrentUser() fetches the currently logged-in user, and if they are not logged in or do not have the displayName, it shows 'N/A'.
