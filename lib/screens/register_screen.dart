@@ -77,8 +77,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final currentUser = firebase_auth.FirebaseAuth.instance.currentUser;
 
       if (user != null && currentUser != null) {
+        final originalUsername = usernameController.text.trim();
+        final displayName = originalUsername; // or prompt separately if needed
+
+        // Save to /users collection
         await FirebaseFirestore.instance
-            .doc('usernames/$username')
+            .collection('users')
+            .doc(currentUser.uid)
+            .set({
+          'email': currentUser.email,
+          'uid': currentUser.uid,
+          'name': displayName,
+          'username': originalUsername,
+          'username_lowercase': originalUsername.toLowerCase(),
+          'friends': [],
+          'incomingRequests': [],
+          'outgoingRequests': [],
+        });
+
+        // Save username mapping for search and uniqueness
+        await FirebaseFirestore.instance
+            .collection('usernames')
+            .doc(originalUsername.toLowerCase())
             .set({'uid': currentUser.uid});
 
         Navigator.pushReplacement(

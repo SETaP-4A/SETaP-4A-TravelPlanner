@@ -23,7 +23,7 @@ class DatabaseHelper {
   DatabaseHelper._privateConstructor();
   static final DatabaseHelper instance = DatabaseHelper._privateConstructor();
   static Database? _database;
-  static const _dbVersion = 1;
+  static const _dbVersion = 2;
 
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
@@ -52,6 +52,7 @@ class DatabaseHelper {
       dbPath,
       version: _dbVersion,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
       password: password,
       onOpen: _onOpen,
     );
@@ -78,6 +79,9 @@ class DatabaseHelper {
     description TEXT,
     comments TEXT,
     userId INTEGER,
+    ownerUid TEXT,
+    collaborators TEXT,
+    permission TEXT,
     FOREIGN KEY (userId) REFERENCES user(id) ON DELETE CASCADE
   )
 ''');
@@ -143,6 +147,14 @@ class DatabaseHelper {
     )''');
 
     print('Tables created successfully.');
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute("ALTER TABLE itinerary ADD COLUMN ownerUid TEXT");
+      await db.execute("ALTER TABLE itinerary ADD COLUMN collaborators TEXT");
+      await db.execute("ALTER TABLE itinerary ADD COLUMN permission TEXT");
+    }
   }
 
   // Enables foreign key constraints on opening the database
