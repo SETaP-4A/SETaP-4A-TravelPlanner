@@ -1,0 +1,29 @@
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+name: "Build and Test"
+jobs:
+  build:
+    name: "Build"
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: actions/flutter-action@v2 
+        with:
+          flutter-version: '3.29.0'
+          channel: 'stable'
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: analyse code
+        run: flutter analyze
+
+      - name: Run tests
+        run: flutter test
