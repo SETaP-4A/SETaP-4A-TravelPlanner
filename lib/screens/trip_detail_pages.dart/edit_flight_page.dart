@@ -1,19 +1,23 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:setap4a/models/flight.dart';
 import 'package:setap4a/db/database_helper.dart';
 import 'package:setap4a/models/itinerary.dart';
-import 'package:setap4a/screens/trip_pages/trip_details_page.dart';
-import 'package:intl/intl.dart';
 import 'package:setap4a/widgets/date_time_field.dart';
 
 class EditFlightPage extends StatefulWidget {
   final Flight flight;
   final String docId;
+  final bool isViewer;
+  final String ownerUid;
 
-  const EditFlightPage({super.key, required this.flight, required this.docId});
+  const EditFlightPage(
+      {super.key,
+      required this.flight,
+      required this.docId,
+      required this.ownerUid,
+      this.isViewer = false});
 
   @override
   State<EditFlightPage> createState() => _EditFlightPageState();
@@ -50,7 +54,6 @@ class _EditFlightPageState extends State<EditFlightPage> {
   Future<void> _saveChanges() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // ✅ Check that departure is before arrival
     final departure =
         DateTime.tryParse(_departureDateTimeController.text.trim());
     final arrival = DateTime.tryParse(_arrivalDateTimeController.text.trim());
@@ -74,26 +77,36 @@ class _EditFlightPageState extends State<EditFlightPage> {
       itineraryFirestoreId: widget.flight.itineraryFirestoreId,
     );
 
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
+    final uid = widget.ownerUid;
 
     try {
       if (kIsWeb) {
         await FirebaseFirestore.instance
             .collection('users')
-            .doc(uid)
+            .doc(widget.ownerUid)
             .collection('itineraries')
             .doc(updatedFlight.itineraryFirestoreId)
             .collection('flights')
             .doc(widget.docId)
             .set(updatedFlight.toMap());
       } else {
+        // ✅ Sync Firestore even for Android
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(widget.ownerUid) // 👈 VERY IMPORTANT
+            .collection('itineraries')
+            .doc(updatedFlight.itineraryFirestoreId)
+            .collection('flights')
+            .doc(widget.docId)
+            .set(updatedFlight.toMap());
+
+        // Optionally update SQLite if you're syncing locally
         await DatabaseHelper.instance.insertFlight(updatedFlight);
       }
 
       final itineraryDoc = await FirebaseFirestore.instance
           .collection('users')
-          .doc(uid)
+          .doc(widget.ownerUid)
           .collection('itineraries')
           .doc(updatedFlight.itineraryFirestoreId)
           .get();
@@ -101,11 +114,7 @@ class _EditFlightPageState extends State<EditFlightPage> {
       final itinerary =
           Itinerary.fromMap(itineraryDoc.data()!, firestoreId: itineraryDoc.id);
 
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => TripDetailsPage(trip: itinerary)),
-        (route) => route.isFirst,
-      );
+      Navigator.pop(context, 'updated');
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Failed to update flight: $e")),
@@ -115,6 +124,16 @@ class _EditFlightPageState extends State<EditFlightPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.isViewer) {
+      Future.microtask(() {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("You don't have permission to edit.")),
+        );
+      });
+      return const Scaffold();
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('Edit Flight')),
       body: Padding(
@@ -127,11 +146,15 @@ class _EditFlightPageState extends State<EditFlightPage> {
                 _buildField('Airline', _airlineController),
                 _buildField('Flight Number', _flightNumberController),
                 DateTimeField(
-                    controller: _departureDateTimeController,
-                    label: 'Departure Date & Time'),
+                  controller: _departureDateTimeController,
+                  label: 'Departure Date & Time',
+                  isRequired: true,
+                ),
                 DateTimeField(
-                    controller: _arrivalDateTimeController,
-                    label: 'Arrival Date & Time'),
+                  controller: _arrivalDateTimeController,
+                  label: 'Arrival Date & Time',
+                  isRequired: true,
+                ),
                 _buildField('Departure Airport', _departureAirportController),
                 _buildField('Arrival Airport', _arrivalAirportController),
                 _buildField('Class Type', _classTypeController, optional: true),
@@ -152,18 +175,38 @@ class _EditFlightPageState extends State<EditFlightPage> {
 
   Widget _buildField(String label, TextEditingController controller,
       {bool optional = false}) {
+    final themeColor = Theme.of(context).textTheme.bodySmall?.color;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: TextFormField(
         controller: controller,
-        decoration: InputDecoration(labelText: label),
         validator: (value) {
-          if (optional) return null;
-          if (value == null || value.trim().isEmpty) {
+          if (!optional && (value == null || value.trim().isEmpty)) {
             return 'Please enter $label';
           }
           return null;
         },
+        decoration: InputDecoration(
+          label: RichText(
+            text: TextSpan(
+              text: label,
+              style: TextStyle(
+                fontSize: 16,
+                color: themeColor,
+              ),
+              children: optional
+                  ? []
+                  : const [
+                      TextSpan(
+                        text: ' *',
+                        style: TextStyle(color: Colors.red),
+                      )
+                    ],
+            ),
+          ),
+          border: const UnderlineInputBorder(),
+        ),
       ),
     );
   }

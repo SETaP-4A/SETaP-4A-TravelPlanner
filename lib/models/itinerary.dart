@@ -63,20 +63,33 @@ class Itinerary {
     );
   }
 
-  Itinerary copyWith({String? firestoreId, List<String>? collaborators}) {
+  Itinerary copyWith({
+    int? id,
+    String? firestoreId,
+    String? title,
+    String? startDate,
+    String? endDate,
+    String? location,
+    String? description,
+    String? comments,
+    int? userId,
+    String? ownerUid,
+    List<String>? collaborators,
+    String? permission,
+  }) {
     return Itinerary(
-      id: id,
+      id: id ?? this.id,
       firestoreId: firestoreId ?? this.firestoreId,
-      title: title,
-      startDate: startDate,
-      endDate: endDate,
-      location: location,
-      description: description,
-      comments: comments,
-      userId: userId,
-      ownerUid: ownerUid,
+      title: title ?? this.title,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
+      location: location ?? this.location,
+      description: description ?? this.description,
+      comments: comments ?? this.comments,
+      userId: userId ?? this.userId,
+      ownerUid: ownerUid ?? this.ownerUid,
       collaborators: collaborators ?? this.collaborators,
-      permission: permission,
+      permission: permission ?? this.permission,
     );
   }
 }

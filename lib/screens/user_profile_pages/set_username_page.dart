@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:setap4a/main.dart';
+import 'package:setap4a/screens/home_screen.dart';
 
 class SetUsernamePage extends StatefulWidget {
   @override
@@ -63,8 +65,12 @@ class _SetUsernamePageState extends State<SetUsernamePage> {
           .set({'uid': user.uid});
 
       if (context.mounted) {
-        Navigator.pushReplacementNamed(
-            context, '/home'); // or pop if you came from register
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => HomeScreen(themeNotifier: themeNotifier),
+          ),
+        );
       }
     } catch (e) {
       print("❌ Username submission error: $e");

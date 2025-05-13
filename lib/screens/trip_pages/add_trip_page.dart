@@ -129,20 +129,24 @@ class _AddTripPageState extends State<AddTripPage> {
           child: SingleChildScrollView(
             child: Column(
               children: [
-                _buildTextField('Trip Name', _nameController, isRequired: true),
-                _buildTextField('Destination', _locationController,
+                _buildTextField('Trip Name *', _nameController,
                     isRequired: true),
-                _buildDateField(
-                    'Start Date (e.g., May 10, 2025)', _startDateController,
+                _buildTextField('Destination *', _locationController,
                     isRequired: true),
-                _buildDateField(
-                    'End Date (e.g., May 15, 2025)', _endDateController,
+                _buildDateField('Start Date *', _startDateController,
+                    isRequired: true),
+                _buildDateField('End Date *', _endDateController,
                     isRequired: true),
                 _buildTextField('Description', _descriptionController),
                 _buildTextField('Comments', _commentsController),
-                const SizedBox(height: 20),
+                const SizedBox(height: 30),
                 ElevatedButton(
                   onPressed: _saveTrip,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    textStyle: const TextStyle(fontSize: 16),
+                    minimumSize: const Size.fromHeight(48),
+                  ),
                   child: const Text('Save Trip'),
                 ),
               ],
@@ -155,32 +159,55 @@ class _AddTripPageState extends State<AddTripPage> {
 
   Widget _buildTextField(String label, TextEditingController controller,
       {bool isRequired = false}) {
+    final themeColor = Theme.of(context).textTheme.bodySmall?.color;
+
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
+      padding: const EdgeInsets.only(bottom: 16.0),
       child: TextFormField(
         controller: controller,
-        decoration: InputDecoration(labelText: label),
         validator: (value) {
           if (isRequired && (value == null || value.trim().isEmpty)) {
             return 'This field is required';
           }
+          if (label == 'Trip Name' && value!.length > 50) {
+            return 'Trip name too long';
+          }
           return null;
         },
+        decoration: InputDecoration(
+          label: RichText(
+            text: TextSpan(
+              text: label.replaceAll(' *', ''),
+              style: TextStyle(
+                fontSize: 16,
+                color: themeColor,
+                fontWeight: FontWeight.normal,
+              ),
+              children: isRequired
+                  ? const [
+                      TextSpan(
+                        text: ' *',
+                        style: TextStyle(color: Colors.red),
+                      )
+                    ]
+                  : [],
+            ),
+          ),
+          border: const UnderlineInputBorder(),
+        ),
       ),
     );
   }
 
   Widget _buildDateField(String label, TextEditingController controller,
       {bool isRequired = false}) {
+    final themeColor = Theme.of(context).textTheme.bodySmall?.color;
+
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
+      padding: const EdgeInsets.only(bottom: 16.0),
       child: TextFormField(
         controller: controller,
         readOnly: true,
-        decoration: InputDecoration(
-          labelText: label,
-          suffixIcon: const Icon(Icons.calendar_today),
-        ),
         onTap: () => _selectDate(controller, label),
         validator: (value) {
           if (isRequired && (value == null || value.trim().isEmpty)) {
@@ -188,6 +215,28 @@ class _AddTripPageState extends State<AddTripPage> {
           }
           return null;
         },
+        decoration: InputDecoration(
+          label: RichText(
+            text: TextSpan(
+              text: label.replaceAll(' *', ''),
+              style: TextStyle(
+                fontSize: 16,
+                color: themeColor,
+                fontWeight: FontWeight.normal,
+              ),
+              children: isRequired
+                  ? const [
+                      TextSpan(
+                        text: ' *',
+                        style: TextStyle(color: Colors.red),
+                      )
+                    ]
+                  : [],
+            ),
+          ),
+          suffixIcon: const Icon(Icons.calendar_today),
+          border: const UnderlineInputBorder(),
+        ),
       ),
     );
   }

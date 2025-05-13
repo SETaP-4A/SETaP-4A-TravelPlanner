@@ -10,8 +10,10 @@ import 'package:setap4a/widgets/date_time_field.dart';
 
 class AddFlightPage extends StatefulWidget {
   final String itineraryFirestoreId;
+  final String? ownerUid;
 
-  const AddFlightPage({super.key, required this.itineraryFirestoreId});
+  const AddFlightPage(
+      {super.key, required this.itineraryFirestoreId, required this.ownerUid});
 
   @override
   State<AddFlightPage> createState() => _AddFlightPageState();
@@ -73,7 +75,7 @@ class _AddFlightPageState extends State<AddFlightPage> {
       if (kIsWeb) {
         await FirebaseFirestore.instance
             .collection('users')
-            .doc(user.uid)
+            .doc(widget.ownerUid)
             .collection('itineraries')
             .doc(widget.itineraryFirestoreId)
             .collection('flights')
@@ -100,19 +102,18 @@ class _AddFlightPageState extends State<AddFlightPage> {
   }
 
   Future<Itinerary> _fetchTripByFirestoreId(String firestoreId) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) throw Exception("User not signed in");
-
     final doc = await FirebaseFirestore.instance
         .collection('users')
-        .doc(uid)
+        .doc(widget.ownerUid)
         .collection('itineraries')
         .doc(firestoreId)
         .get();
 
     if (!doc.exists) throw Exception("Trip not found");
 
-    return Itinerary.fromMap(doc.data()!, firestoreId: doc.id);
+    final rawData = doc.data()!;
+    return Itinerary.fromMap(rawData, firestoreId: doc.id)
+        .copyWith(permission: 'editor');
   }
 
   @override
@@ -129,15 +130,20 @@ class _AddFlightPageState extends State<AddFlightPage> {
                 _buildField('Airline', _airlineController),
                 _buildField('Flight Number', _flightNumberController),
                 DateTimeField(
-                    controller: _departureDateTimeController,
-                    label: 'Departure Date & Time'),
+                  controller: _departureDateTimeController,
+                  label: 'Departure Date & Time',
+                  isRequired: true,
+                ),
                 DateTimeField(
-                    controller: _arrivalDateTimeController,
-                    label: 'Arrival Date & Time'),
+                  controller: _arrivalDateTimeController,
+                  label: 'Arrival Date & Time',
+                  isRequired: true,
+                ),
                 _buildField('Departure Airport', _departureAirportController),
                 _buildField('Arrival Airport', _arrivalAirportController),
-                _buildField('Class Type', _classTypeController),
-                _buildField('Seat Number', _seatNumberController),
+                _buildField('Class Type', _classTypeController, optional: true),
+                _buildField('Seat Number', _seatNumberController,
+                    optional: true),
                 const SizedBox(height: 20),
                 ElevatedButton(
                   onPressed: _saveFlight,
@@ -151,18 +157,40 @@ class _AddFlightPageState extends State<AddFlightPage> {
     );
   }
 
-  Widget _buildField(String label, TextEditingController controller) {
+  Widget _buildField(String label, TextEditingController controller,
+      {bool optional = false}) {
+    final themeColor = Theme.of(context).textTheme.bodySmall?.color;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: TextFormField(
         controller: controller,
-        decoration: InputDecoration(labelText: label),
         validator: (value) {
-          if (value == null || value.trim().isEmpty) {
+          if (!optional && (value == null || value.trim().isEmpty)) {
             return 'Please enter $label';
           }
           return null;
         },
+        decoration: InputDecoration(
+          label: RichText(
+            text: TextSpan(
+              text: label,
+              style: TextStyle(
+                fontSize: 16,
+                color: themeColor,
+              ),
+              children: optional
+                  ? []
+                  : const [
+                      TextSpan(
+                        text: ' *',
+                        style: TextStyle(color: Colors.red),
+                      )
+                    ],
+            ),
+          ),
+          border: const UnderlineInputBorder(),
+        ),
       ),
     );
   }

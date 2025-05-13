@@ -5,11 +5,13 @@ import 'explore_pages/explore_page.dart';
 import 'user_profile_pages/user_profile_page.dart';
 import 'package:setap4a/services/auth_service.dart';
 import 'package:setap4a/screens/login_screen.dart';
-import 'package:setap4a/screens/debug/local_user_test_screen.dart';
 
 // To format and compare dates
 
 class HomeScreen extends StatefulWidget {
+  final ValueNotifier<ThemeMode> themeNotifier;
+  const HomeScreen({super.key, required this.themeNotifier});
+
   @override
   _HomeScreenState createState() => _HomeScreenState();
 }
@@ -77,6 +79,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 leading: const Icon(Icons.account_circle),
                 title: const Text('Account'),
                 onTap: () => _navigateTo(AccountPage()),
+              ),
+              ListTile(
+                leading: const Icon(Icons.settings),
+                title: const Text('Settings'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.pushNamed(context, '/settings');
+                },
               ),
             ],
           ),

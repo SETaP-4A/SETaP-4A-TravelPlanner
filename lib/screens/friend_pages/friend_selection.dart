@@ -111,11 +111,22 @@ class _FriendSelectionPageState extends State<FriendSelectionPage> {
                   trailing: isSelected
                       ? DropdownButton<String>(
                           value: currentPermission,
+                          dropdownColor: Theme.of(context).cardColor,
                           items: const [
                             DropdownMenuItem(
-                                value: 'viewer', child: Text('Viewer')),
+                              value: 'viewer',
+                              child: Text(
+                                'Viewer',
+                                style: TextStyle(color: Colors.orangeAccent),
+                              ),
+                            ),
                             DropdownMenuItem(
-                                value: 'editor', child: Text('Editor')),
+                              value: 'editor',
+                              child: Text(
+                                'Editor',
+                                style: TextStyle(color: Colors.greenAccent),
+                              ),
+                            ),
                           ],
                           onChanged: (value) {
                             if (value != null) _setPermission(uid, value);

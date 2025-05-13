@@ -2,15 +2,12 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:setap4a/screens/trip_pages/trip_details_page.dart';
 import 'package:setap4a/models/itinerary.dart';
 import 'package:setap4a/db/database_helper.dart';
 import 'package:setap4a/screens/trip_pages/add_trip_page.dart';
-import 'package:setap4a/services/auth_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:setap4a/widgets/trip_card.dart';
 
 class TripsPage extends StatefulWidget {
@@ -40,7 +37,7 @@ class _TripsPageState extends State<TripsPage> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
 
-    _tripSub?.cancel(); // Cancel old subscription if exists
+    _tripSub?.cancel();
 
     _tripSub = FirebaseFirestore.instance
         .collectionGroup('itineraries')
@@ -51,25 +48,33 @@ class _TripsPageState extends State<TripsPage> {
           ),
         )
         .snapshots()
-        .listen((snapshot) {
-      final updatedTrips = snapshot.docs.map((doc) {
+        .listen((snapshot) async {
+      final List<Itinerary> updatedTrips = [];
+
+      for (final doc in snapshot.docs) {
         final data = doc.data();
         final isOwner = data['ownerUid'] == uid;
+        final tripId = doc.id;
 
-        // Look up permission from accepted invites (you can also cache this in Firestore)
-        final matchingInvite = incomingInvites.firstWhere(
-          (invite) => invite['tripId'] == doc.id,
-          orElse: () => {},
-        );
+        String permission = 'viewer';
 
-        final permission =
-            isOwner ? 'editor' : matchingInvite['permission'] ?? 'viewer';
+        if (isOwner) {
+          permission = 'editor';
+        } else {
+          final permDoc =
+              await doc.reference.collection('permissions').doc(uid).get();
+          if (permDoc.exists) {
+            permission = permDoc.data()?['permission'] ?? 'viewer';
+          }
+        }
 
-        return Itinerary.fromMap(
+        final itinerary = Itinerary.fromMap(
           {...data, 'permission': permission},
-          firestoreId: doc.id,
+          firestoreId: tripId,
         );
-      }).toList();
+
+        updatedTrips.add(itinerary);
+      }
 
       setState(() {
         trips = updatedTrips;
@@ -86,15 +91,35 @@ class _TripsPageState extends State<TripsPage> {
         .collection('users')
         .doc(user.uid)
         .collection('tripInvites')
+        .where('status', isEqualTo: 'pending') // ✅ Only listen to pending
         .snapshots()
-        .listen((snapshot) {
-      final pendingOnly = snapshot.docs
-          .where((doc) => doc.data()['status'] == 'pending')
-          .map((doc) => {...doc.data(), 'docId': doc.id})
-          .toList();
+        .listen((snapshot) async {
+      final List<Map<String, dynamic>> pendingWithNames = [];
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+
+        final inviterUid = data['inviterUid'];
+        String inviterName = 'Unknown';
+
+        if (inviterUid != null) {
+          final inviterDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(inviterUid)
+              .get();
+
+          inviterName = inviterDoc.data()?['name'] ?? 'Unnamed';
+        }
+
+        pendingWithNames.add({
+          ...data,
+          'docId': doc.id,
+          'inviterName': inviterName,
+        });
+      }
 
       setState(() {
-        incomingInvites = pendingOnly;
+        incomingInvites = pendingWithNames;
       });
     });
   }
@@ -161,10 +186,28 @@ class _TripsPageState extends State<TripsPage> {
       await tripRef.update({
         'collaborators': FieldValue.arrayUnion([user.uid])
       });
+
+      await tripRef
+          .collection('permissions')
+          .doc(user.uid)
+          .set({'permission': invite['permission'] ?? 'viewer'});
     }
 
-    // First update the invite
+// ✅ Mark invite as resolved
     await inviteRef.update({'status': accept ? 'accepted' : 'declined'});
+
+    setState(() {
+      incomingInvites
+          .removeWhere((i) => i['docId'] == docId || i['id'] == docId);
+    });
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(accept ? 'Joined trip!' : 'Invite declined.'),
+        ),
+      );
+    }
 
     // Then remove from local state and show feedback
     setState(() {
@@ -283,7 +326,6 @@ class _TripsPageState extends State<TripsPage> {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Travel App'),
           bottom: TabBar(
             tabs: [
               Tab(text: "My Trips ($myTripsCount)"),
@@ -293,10 +335,16 @@ class _TripsPageState extends State<TripsPage> {
         ),
         body: Column(
           children: [
-            const Padding(
-              padding: EdgeInsets.all(12.0),
-              child: Text('Upcoming Trips',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Text(
+                'Upcoming Trips',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
             ),
             if (incomingInvites.isNotEmpty)
               Padding(
@@ -304,29 +352,73 @@ class _TripsPageState extends State<TripsPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text("Trip Invites",
+                    Text("Trip Invites",
                         style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold)),
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        )),
                     const SizedBox(height: 8),
                     ...incomingInvites.map((invite) => Card(
-                          child: ListTile(
-                            title: Text(invite['tripTitle'] ?? 'Unnamed Trip'),
-                            subtitle: Text(
-                                "Permission: ${invite['permission']}",
-                                style: TextStyle(color: Colors.grey[600])),
-                            trailing: Wrap(
-                              spacing: 8,
+                          color: Theme.of(context).colorScheme.surfaceVariant,
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12.0, vertical: 8.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                TextButton(
-                                  onPressed: () =>
-                                      _respondToInvite(invite, accept: true),
-                                  child: const Text("Accept"),
+                                Text(
+                                  invite['tripTitle'] ?? 'Unnamed Trip',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
+                                      ?.copyWith(fontWeight: FontWeight.bold),
                                 ),
-                                TextButton(
-                                  onPressed: () =>
-                                      _respondToInvite(invite, accept: false),
-                                  child: const Text("Decline"),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.person,
+                                        size: 16, color: Colors.blueGrey),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      "From: ${invite['inviterName'] ?? 'Unknown'}",
+                                      style: TextStyle(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurface,
+                                      ),
+                                    ),
+                                  ],
                                 ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  "Permission: ${invite['permission']}",
+                                  style: TextStyle(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withOpacity(0.65),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    TextButton(
+                                      onPressed: () => _respondToInvite(invite,
+                                          accept: true),
+                                      child: const Text("Accept"),
+                                    ),
+                                    TextButton(
+                                      onPressed: () => _respondToInvite(invite,
+                                          accept: false),
+                                      child: const Text("Decline"),
+                                    ),
+                                  ],
+                                )
                               ],
                             ),
                           ),
@@ -344,14 +436,17 @@ class _TripsPageState extends State<TripsPage> {
             ),
           ],
         ),
-        floatingActionButton: FloatingActionButton(
+        floatingActionButton: FloatingActionButton.extended(
           onPressed: () async {
             final result = await Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const AddTripPage()),
             );
           },
-          child: const Icon(Icons.add),
+          icon: const Icon(Icons.add),
+          label: const Text('Add Trip'),
+          backgroundColor: Colors.blueAccent,
+          foregroundColor: Colors.white,
         ),
       ),
     );

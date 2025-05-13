@@ -47,7 +47,7 @@ class TripCard extends StatelessWidget {
             Text(
               trip.startDate ?? '',
               style: TextStyle(
-                color: isOwner ? Colors.black : Colors.blueGrey,
+                color: Theme.of(context).colorScheme.onSurface.withAlpha(204),
               ),
             ),
             if (!isOwner)

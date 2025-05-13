@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 class Activity {
   final String? id;
   final String itineraryFirestoreId;
@@ -33,7 +35,7 @@ class Activity {
   }
 
   Map<String, dynamic> toMap() {
-    return {
+    final map = {
       'itineraryFirestoreId': itineraryFirestoreId,
       'name': name,
       'type': type,
@@ -42,5 +44,7 @@ class Activity {
       'duration': duration,
       'notes': notes,
     };
+    debugPrint("🎯 Activity toMap: $map");
+    return map;
   }
 }
