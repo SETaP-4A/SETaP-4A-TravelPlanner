@@ -6,13 +6,14 @@ import 'package:setap4a/models/activity.dart';
 import 'package:setap4a/models/itinerary.dart';
 import 'package:setap4a/db/database_helper.dart';
 import 'package:setap4a/screens/trip_pages/trip_details_page.dart';
-import 'package:intl/intl.dart';
 import 'package:setap4a/widgets/date_time_field.dart';
 
 class AddActivityPage extends StatefulWidget {
   final String itineraryFirestoreId;
+  final String? ownerUid;
 
-  const AddActivityPage({super.key, required this.itineraryFirestoreId});
+  const AddActivityPage(
+      {super.key, required this.itineraryFirestoreId, required this.ownerUid});
 
   @override
   State<AddActivityPage> createState() => _AddActivityPageState();
@@ -53,7 +54,7 @@ class _AddActivityPageState extends State<AddActivityPage> {
       if (kIsWeb) {
         await FirebaseFirestore.instance
             .collection('users')
-            .doc(user.uid)
+            .doc(widget.ownerUid)
             .collection('itineraries')
             .doc(widget.itineraryFirestoreId)
             .collection('activities')
@@ -79,19 +80,18 @@ class _AddActivityPageState extends State<AddActivityPage> {
   }
 
   Future<Itinerary> _fetchTripByFirestoreId(String firestoreId) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) throw Exception("User not signed in");
-
     final doc = await FirebaseFirestore.instance
         .collection('users')
-        .doc(uid)
+        .doc(widget.ownerUid)
         .collection('itineraries')
         .doc(firestoreId)
         .get();
 
     if (!doc.exists) throw Exception("Trip not found");
 
-    return Itinerary.fromMap(doc.data()!, firestoreId: doc.id);
+    final rawData = doc.data()!;
+    return Itinerary.fromMap(rawData, firestoreId: doc.id)
+        .copyWith(permission: 'editor');
   }
 
   @override
@@ -105,11 +105,13 @@ class _AddActivityPageState extends State<AddActivityPage> {
           child: SingleChildScrollView(
             child: Column(
               children: [
-                _buildField('Name', _nameController),
-                _buildField('Type', _typeController),
-                _buildField('Location', _locationController),
+                _buildField('Name', _nameController, isRequired: true),
+                _buildField('Type', _typeController, isRequired: true),
+                _buildField('Location', _locationController, isRequired: true),
                 DateTimeField(
-                    controller: _dateTimeController, label: 'Date & Time'),
+                    controller: _dateTimeController,
+                    label: 'Date & Time',
+                    isRequired: true),
                 _buildField('Duration', _durationController),
                 _buildField('Notes', _notesController),
                 const SizedBox(height: 20),
@@ -126,16 +128,38 @@ class _AddActivityPageState extends State<AddActivityPage> {
   }
 
   Widget _buildField(String label, TextEditingController controller,
-      {bool isDateTime = false}) {
+      {bool isRequired = false}) {
+    final themeColor = Theme.of(context).textTheme.bodySmall?.color;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: TextFormField(
         controller: controller,
-        readOnly: isDateTime,
-        decoration: InputDecoration(labelText: label),
-        validator: (value) => value == null || value.trim().isEmpty
-            ? 'Please enter $label'
-            : null,
+        decoration: InputDecoration(
+          label: RichText(
+            text: TextSpan(
+              text: label,
+              style: TextStyle(
+                fontSize: 16,
+                color: themeColor,
+              ),
+              children: isRequired
+                  ? const [
+                      TextSpan(
+                        text: ' *',
+                        style: TextStyle(color: Colors.red),
+                      )
+                    ]
+                  : [],
+            ),
+          ),
+        ),
+        validator: (value) {
+          if (isRequired && (value == null || value.trim().isEmpty)) {
+            return 'Please enter $label';
+          }
+          return null;
+        },
       ),
     );
   }

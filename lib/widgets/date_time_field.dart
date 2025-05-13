@@ -4,11 +4,13 @@ import 'package:intl/intl.dart';
 class DateTimeField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
+  final bool isRequired;
 
   const DateTimeField({
     super.key,
     required this.controller,
     required this.label,
+    this.isRequired = false,
   });
 
   Future<void> _pickDateTime(BuildContext context) async {
@@ -35,23 +37,46 @@ class DateTimeField extends StatelessWidget {
     );
 
     final locale = Localizations.localeOf(context).toString();
-    controller.text = DateFormat.yMMMMd(locale)
-        .add_Hm()
-        .format(dateTime); // e.g., April 9, 2025 at 18:00
+    controller.text = DateFormat.yMMMMd(locale).add_Hm().format(dateTime);
   }
 
   @override
   Widget build(BuildContext context) {
+    final themeColor = Theme.of(context).textTheme.bodySmall?.color;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: TextFormField(
         controller: controller,
         readOnly: true,
-        decoration: InputDecoration(labelText: label),
         onTap: () => _pickDateTime(context),
-        validator: (value) => value == null || value.trim().isEmpty
-            ? 'Please enter $label'
-            : null,
+        validator: (value) {
+          if (isRequired && (value == null || value.trim().isEmpty)) {
+            return 'Please enter $label';
+          }
+          return null;
+        },
+        decoration: InputDecoration(
+          label: RichText(
+            text: TextSpan(
+              text: label,
+              style: TextStyle(
+                fontSize: 16,
+                color: themeColor,
+              ),
+              children: isRequired
+                  ? const [
+                      TextSpan(
+                        text: ' *',
+                        style: TextStyle(color: Colors.red),
+                      )
+                    ]
+                  : [],
+            ),
+          ),
+          suffixIcon: const Icon(Icons.calendar_today),
+          border: const UnderlineInputBorder(),
+        ),
       ),
     );
   }

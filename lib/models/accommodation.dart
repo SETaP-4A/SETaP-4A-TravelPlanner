@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 class Accommodation {
   final String? id;
   final String itineraryFirestoreId;
@@ -25,8 +27,7 @@ class Accommodation {
 
   // Convert an Accommodation object into a Map
   Map<String, dynamic> toMap() {
-    return {
-      'itineraryFirestoreId': itineraryFirestoreId,
+    final map = {
       'name': name,
       'location': location,
       'checkInDate': checkInDate,
@@ -35,7 +36,10 @@ class Accommodation {
       'roomType': roomType,
       'pricePerNight': pricePerNight,
       'facilities': facilities,
+      'itineraryFirestoreId': itineraryFirestoreId,
     };
+    debugPrint("🏨 Accommodation toMap: $map");
+    return map;
   }
 
   // Convert a Map into an Accommodation object

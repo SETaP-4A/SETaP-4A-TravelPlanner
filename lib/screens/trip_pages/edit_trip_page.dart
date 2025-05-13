@@ -1,10 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:setap4a/db/database_helper.dart';
 import 'package:setap4a/models/itinerary.dart';
-import 'package:setap4a/models/flight.dart';
-import 'package:setap4a/models/accommodation.dart';
-import 'package:setap4a/models/activity.dart';
 import 'package:setap4a/screens/trip_detail_pages.dart/add_accommodation_page.dart';
 import 'package:setap4a/screens/trip_detail_pages.dart/add_activity_page.dart';
 import 'package:setap4a/screens/trip_detail_pages.dart/add_flight_page.dart';
@@ -28,10 +28,6 @@ class EditTripPageState extends State<EditTripPage> {
   late TextEditingController _descriptionController;
   late TextEditingController _commentsController;
 
-  List<Flight> _flights = [];
-  List<Accommodation> _accommodations = [];
-  List<Activity> _activities = [];
-
   @override
   void initState() {
     super.initState();
@@ -45,31 +41,23 @@ class EditTripPageState extends State<EditTripPage> {
         TextEditingController(text: widget.trip.description ?? '');
     _commentsController =
         TextEditingController(text: widget.trip.comments ?? '');
-    _loadData();
-  }
-
-  void _loadData() async {
-    final flights = await DatabaseHelper.instance
-        .loadFlightsForItinerary(widget.trip.firestoreId!);
-    final accommodations = await DatabaseHelper.instance
-        .loadAccommodationsForItinerary(widget.trip.firestoreId!);
-    final activities = await DatabaseHelper.instance
-        .loadActivitiesForItinerary(widget.trip.firestoreId!);
-
-    setState(() {
-      _flights = flights;
-      _accommodations = accommodations;
-      _activities = activities;
-    });
   }
 
   Future<void> _pickDate(TextEditingController controller) async {
+    DateTime initialDate;
+    try {
+      initialDate = DateFormat('MMMM dd, yyyy').parse(controller.text);
+    } catch (_) {
+      initialDate = DateTime.now();
+    }
+
     DateTime? pickedDate = await showDatePicker(
       context: context,
-      initialDate: DateTime.tryParse(controller.text) ?? DateTime.now(),
+      initialDate: initialDate,
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
+
     if (pickedDate != null) {
       controller.text = DateFormat('MMMM dd, yyyy').format(pickedDate);
     }
@@ -77,8 +65,8 @@ class EditTripPageState extends State<EditTripPage> {
 
   void _saveTrip() async {
     final dateFormat = DateFormat('MMMM dd, yyyy');
-    final start = dateFormat.parse(_startDateController.text);
-    final end = dateFormat.parse(_endDateController.text);
+    final start = dateFormat.parse(_startDateController.text.trim());
+    final end = dateFormat.parse(_endDateController.text.trim());
 
     if (start.isAfter(end)) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -92,25 +80,43 @@ class EditTripPageState extends State<EditTripPage> {
         final updatedTrip = Itinerary(
           id: widget.trip.id,
           firestoreId: widget.trip.firestoreId,
-          title: _titleController.text,
-          startDate: _startDateController.text,
-          endDate: _endDateController.text,
-          location: _locationController.text.isNotEmpty
-              ? _locationController.text
+          title: _titleController.text.trim(),
+          startDate: _startDateController.text.trim(),
+          endDate: _endDateController.text.trim(),
+          location: _locationController.text.trim().isNotEmpty
+              ? _locationController.text.trim()
               : null,
-          description: _descriptionController.text.isNotEmpty
-              ? _descriptionController.text
+          description: _descriptionController.text.trim().isNotEmpty
+              ? _descriptionController.text.trim()
               : null,
-          comments: _commentsController.text.isNotEmpty
-              ? _commentsController.text
+          comments: _commentsController.text.trim().isNotEmpty
+              ? _commentsController.text.trim()
               : null,
           userId: widget.trip.userId,
+          ownerUid: widget.trip.ownerUid,
+          collaborators: widget.trip.collaborators,
+          permission: widget.trip.permission,
         );
 
-        await DatabaseHelper.instance.updateItinerary(updatedTrip);
+        final firestore = FirebaseFirestore.instance;
+
+        if (widget.trip.firestoreId != null && widget.trip.ownerUid != null) {
+          await firestore
+              .collection('users')
+              .doc(widget.trip.ownerUid)
+              .collection('itineraries')
+              .doc(widget.trip.firestoreId)
+              .update(updatedTrip.toMap());
+        }
+
+        if (!kIsWeb &&
+            FirebaseAuth.instance.currentUser?.uid == widget.trip.ownerUid) {
+          await DatabaseHelper.instance.updateItinerary(updatedTrip);
+        }
+
         Navigator.pop(context, true);
       } catch (e) {
-        print('Failed to update trip: $e');
+        print('❌ Failed to update trip: $e');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to update trip')),
         );
@@ -128,7 +134,22 @@ class EditTripPageState extends State<EditTripPage> {
           key: _formKey,
           child: SingleChildScrollView(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                const Padding(
+                  padding: EdgeInsets.only(top: 12.0, bottom: 16.0),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, size: 22),
+                      SizedBox(width: 8),
+                      Text(
+                        'Trip Details',
+                        style: TextStyle(
+                            fontSize: 22, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
                 _buildTextField('Trip Name', _titleController,
                     isRequired: true),
                 _buildTextField('Destination', _locationController,
@@ -139,63 +160,43 @@ class EditTripPageState extends State<EditTripPage> {
                     isRequired: true),
                 _buildTextField('Description', _descriptionController),
                 _buildTextField('Comments', _commentsController),
-                const SizedBox(height: 20),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                const SizedBox(height: 30),
+                ElevatedButton(
+                  onPressed: _saveTrip,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    textStyle: const TextStyle(fontSize: 16),
+                    minimumSize: const Size.fromHeight(48),
+                  ),
+                  child: const Text('Save Changes'),
+                ),
+                const SizedBox(height: 40),
+                Text("Add Items",
+                    style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 12),
+                Row(
                   children: [
-                    const SizedBox(height: 24),
-
-                    // ✅ Save Changes button (full width)
-                    ElevatedButton(
-                      onPressed: _saveTrip,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        textStyle: const TextStyle(fontSize: 16),
-                      ),
-                      child: const Text('Save Changes'),
-                    ),
-
-                    const SizedBox(height: 30),
-
-                    // ✅ Horizontal row of Add buttons
-                    Wrap(
-                      alignment: WrapAlignment.center,
-                      spacing: 12,
-                      runSpacing: 12,
-                      children: [
-                        ElevatedButton.icon(
-                          icon: const Icon(Icons.flight),
-                          label: const Text('Flight'),
-                          onPressed: () async {
-                            final result = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => AddFlightPage(
-                                  itineraryFirestoreId:
-                                      widget.trip.firestoreId!,
-                                ),
-                              ),
-                            );
-                            if (result == 'refresh') _loadData();
-                          },
-                        ),
-                        ElevatedButton.icon(
-                          icon: const Icon(Icons.hotel),
-                          label: const Text('Accommodation'),
-                          onPressed: () async {
-                            final result = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.hotel),
+                        label: const Text('Accommodation'),
+                        onPressed: () async {
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
                                 builder: (context) => AddAccommodationPage(
-                                  itineraryFirestoreId:
-                                      widget.trip.firestoreId!,
-                                ),
-                              ),
-                            );
-                            if (result == 'refresh') _loadData();
-                          },
-                        ),
-                        ElevatedButton.icon(
+                                      itineraryFirestoreId:
+                                          widget.trip.firestoreId!,
+                                      ownerUid: widget.trip.ownerUid!,
+                                    )),
+                          );
+                          if (result == 'refresh') setState(() {});
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton.icon(
                           icon: const Icon(Icons.directions_walk),
                           label: const Text('Activity'),
                           onPressed: () async {
@@ -205,16 +206,35 @@ class EditTripPageState extends State<EditTripPage> {
                                 builder: (context) => AddActivityPage(
                                   itineraryFirestoreId:
                                       widget.trip.firestoreId!,
+                                  ownerUid: widget.trip.ownerUid!,
                                 ),
                               ),
                             );
-                            if (result == 'refresh') _loadData();
-                          },
-                        ),
-                      ],
+                          }),
                     ),
                   ],
-                )
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.flight),
+                    label: const Text('Flight'),
+                    onPressed: () async {
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AddFlightPage(
+                            itineraryFirestoreId: widget.trip.firestoreId!,
+                            ownerUid: widget.trip.ownerUid!,
+                          ),
+                        ),
+                      );
+                      if (result == 'refresh') setState(() {});
+                    },
+                  ),
+                ),
+                const SizedBox(height: 24),
               ],
             ),
           ),
@@ -225,13 +245,15 @@ class EditTripPageState extends State<EditTripPage> {
 
   Widget _buildTextField(String label, TextEditingController controller,
       {bool isRequired = false}) {
+    final themeColor = Theme.of(context).textTheme.bodySmall?.color;
+
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
+      padding: const EdgeInsets.only(bottom: 16.0),
       child: TextFormField(
         controller: controller,
         validator: (value) {
           if (isRequired && (value == null || value.trim().isEmpty)) {
-            return 'Please enter $label';
+            return 'This field is required';
           }
           if (label == 'Trip Name' && value!.length > 50) {
             return 'Trip name too long';
@@ -239,8 +261,25 @@ class EditTripPageState extends State<EditTripPage> {
           return null;
         },
         decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
+          label: RichText(
+            text: TextSpan(
+              text: label.replaceAll(' *', ''),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.normal,
+                color: themeColor,
+              ),
+              children: isRequired
+                  ? const [
+                      TextSpan(
+                        text: ' *',
+                        style: TextStyle(color: Colors.red),
+                      )
+                    ]
+                  : [],
+            ),
+          ),
+          border: const UnderlineInputBorder(),
         ),
       ),
     );
@@ -248,22 +287,41 @@ class EditTripPageState extends State<EditTripPage> {
 
   Widget _buildDateField(String label, TextEditingController controller,
       {bool isRequired = false}) {
+    final themeColor = Theme.of(context).textTheme.bodySmall?.color;
+
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
+      padding: const EdgeInsets.only(bottom: 16.0),
       child: TextFormField(
         controller: controller,
         readOnly: true,
         onTap: () => _pickDate(controller),
         validator: (value) {
           if (isRequired && (value == null || value.trim().isEmpty)) {
-            return 'Please enter $label';
+            return 'This field is required';
           }
           return null;
         },
         decoration: InputDecoration(
-          labelText: label,
+          label: RichText(
+            text: TextSpan(
+              text: label.replaceAll(' *', ''),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.normal,
+                color: themeColor,
+              ),
+              children: isRequired
+                  ? const [
+                      TextSpan(
+                        text: ' *',
+                        style: TextStyle(color: Colors.red),
+                      )
+                    ]
+                  : [],
+            ),
+          ),
           suffixIcon: const Icon(Icons.calendar_today),
-          border: const OutlineInputBorder(),
+          border: const UnderlineInputBorder(),
         ),
       ),
     );

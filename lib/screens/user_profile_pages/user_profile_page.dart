@@ -55,7 +55,6 @@ class AccountPageState extends State<AccountPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(username ?? 'Unknown User'),
-        actions: [IconButton(onPressed: null, icon: Icon(Icons.settings))],
         automaticallyImplyLeading: false,
       ),
       body: Padding(
@@ -84,10 +83,6 @@ class AccountPageState extends State<AccountPage> {
               child: SizedBox(
                 height: 10,
                 width: MediaQuery.of(context).size.width / 5 * 4,
-                child: const DecoratedBox(
-                  decoration:
-                      BoxDecoration(color: Color.fromARGB(255, 228, 227, 227)),
-                ),
               ),
             ),
           ],

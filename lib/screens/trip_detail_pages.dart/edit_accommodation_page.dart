@@ -1,17 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:setap4a/db/database_helper.dart';
 import 'package:setap4a/models/accommodation.dart';
 import 'package:setap4a/models/itinerary.dart';
-import 'package:setap4a/screens/trip_pages/trip_details_page.dart';
 import 'package:setap4a/widgets/date_picker_field.dart';
 
 class EditAccommodationPage extends StatefulWidget {
   final Accommodation accommodation;
   final String docId;
+  final bool isViewer;
+  final String ownerUid;
 
   const EditAccommodationPage(
-      {super.key, required this.accommodation, required this.docId});
+      {super.key,
+      required this.accommodation,
+      required this.docId,
+      required this.ownerUid,
+      this.isViewer = false});
 
   @override
   State<EditAccommodationPage> createState() => _EditAccommodationPageState();
@@ -46,7 +51,6 @@ class _EditAccommodationPageState extends State<EditAccommodationPage> {
   Future<void> _saveChanges() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // ✅ Check that check-in is before check-out
     final checkIn = DateTime.tryParse(_checkInDateController.text.trim());
     final checkOut = DateTime.tryParse(_checkOutDateController.text.trim());
 
@@ -71,65 +75,55 @@ class _EditAccommodationPageState extends State<EditAccommodationPage> {
       itineraryFirestoreId: widget.accommodation.itineraryFirestoreId,
     );
 
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
+    try {
+      final uid = widget.ownerUid;
 
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .collection('itineraries')
-        .doc(updated.itineraryFirestoreId)
-        .collection('accommodations')
-        .doc(widget.docId)
-        .set(updated.toMap());
+      if (uid == null) throw Exception("No user signed in");
 
-    final tripDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .collection('itineraries')
-        .doc(updated.itineraryFirestoreId)
-        .get();
+      debugPrint("🏨 Updated accommodation map: ${updated.toMap()}");
 
-    final itinerary =
-        Itinerary.fromMap(tripDoc.data()!, firestoreId: tripDoc.id);
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('itineraries')
+          .doc(updated.itineraryFirestoreId)
+          .collection('accommodations')
+          .doc(widget.docId)
+          .set(updated.toMap());
 
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => TripDetailsPage(trip: itinerary)),
-      (route) => route.isFirst,
-    );
-  }
+      await DatabaseHelper.instance.insertAccommodation(updated);
 
-  Widget _buildField(String label, TextEditingController controller,
-      {bool isDate = false}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
-      child: TextFormField(
-        controller: controller,
-        readOnly: isDate,
-        decoration: InputDecoration(labelText: label),
-        onTap: isDate
-            ? () async {
-                final picked = await showDatePicker(
-                  context: context,
-                  initialDate: DateTime.now(),
-                  firstDate: DateTime(2020),
-                  lastDate: DateTime(2100),
-                );
-                if (picked != null) {
-                  controller.text = picked.toLocal().toString().split(' ')[0];
-                }
-              }
-            : null,
-        validator: (value) => value == null || value.trim().isEmpty
-            ? 'Please enter $label'
-            : null,
-      ),
-    );
+      final tripDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('itineraries')
+          .doc(updated.itineraryFirestoreId)
+          .get();
+
+      final itinerary =
+          Itinerary.fromMap(tripDoc.data()!, firestoreId: tripDoc.id);
+
+      Navigator.pop(context, 'updated');
+    } catch (e) {
+      debugPrint("❌ Failed to update accommodation: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to update accommodation: $e")),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (widget.isViewer) {
+      Future.microtask(() {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("You don't have permission to edit.")),
+        );
+      });
+      return const Scaffold();
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('Edit Accommodation')),
       body: Padding(
@@ -139,16 +133,21 @@ class _EditAccommodationPageState extends State<EditAccommodationPage> {
           child: SingleChildScrollView(
             child: Column(
               children: [
-                _buildField('Name', _nameController),
-                _buildField('Location', _locationController),
+                _buildField('Name', _nameController, isRequired: true),
+                _buildField('Location', _locationController, isRequired: true),
                 DatePickerField(
-                    controller: _checkInDateController, label: 'Check-In Date'),
+                  controller: _checkInDateController,
+                  label: 'Check-In Date',
+                  isRequired: true,
+                ),
                 DatePickerField(
-                    controller: _checkOutDateController,
-                    label: 'Check-Out Date'),
+                  controller: _checkOutDateController,
+                  label: 'Check-Out Date',
+                  isRequired: true,
+                ),
                 _buildField('Booking Confirmation', _bookingController),
                 _buildField('Room Type', _roomTypeController),
-                _buildField('Price Per Night', _pricePerNightController),
+                _buildField('Price per Night', _pricePerNightController),
                 _buildField('Facilities', _facilitiesController),
                 const SizedBox(height: 20),
                 ElevatedButton(
@@ -159,6 +158,38 @@ class _EditAccommodationPageState extends State<EditAccommodationPage> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildField(String label, TextEditingController controller,
+      {bool isRequired = false}) {
+    final themeColor = Theme.of(context).textTheme.bodySmall?.color;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: TextFormField(
+        controller: controller,
+        decoration: InputDecoration(
+          label: RichText(
+            text: TextSpan(
+              text: label,
+              style: TextStyle(fontSize: 16, color: themeColor),
+              children: isRequired
+                  ? const [
+                      TextSpan(
+                        text: ' *',
+                        style: TextStyle(color: Colors.red),
+                      )
+                    ]
+                  : [],
+            ),
+          ),
+          border: const UnderlineInputBorder(),
+        ),
+        validator: isRequired && (controller.text.trim().isEmpty)
+            ? (_) => 'Please enter $label'
+            : null,
       ),
     );
   }

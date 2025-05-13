@@ -5,15 +5,21 @@ import 'package:flutter/foundation.dart';
 import 'package:setap4a/models/activity.dart';
 import 'package:setap4a/models/itinerary.dart';
 import 'package:setap4a/db/database_helper.dart';
-import 'package:setap4a/screens/trip_pages/trip_details_page.dart';
 import 'package:setap4a/widgets/date_time_field.dart';
 
 class EditActivityPage extends StatefulWidget {
   final Activity activity;
   final String docId;
+  final String ownerUid;
+  final bool isViewer;
 
-  const EditActivityPage(
-      {super.key, required this.activity, required this.docId});
+  const EditActivityPage({
+    super.key,
+    required this.activity,
+    required this.docId,
+    required this.ownerUid,
+    this.isViewer = false,
+  });
 
   @override
   State<EditActivityPage> createState() => _EditActivityPageState();
@@ -54,26 +60,36 @@ class _EditActivityPageState extends State<EditActivityPage> {
       itineraryFirestoreId: widget.activity.itineraryFirestoreId,
     );
 
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
+    final uid = widget.ownerUid;
 
     try {
       if (kIsWeb) {
         await FirebaseFirestore.instance
             .collection('users')
-            .doc(uid)
+            .doc(widget.ownerUid)
             .collection('itineraries')
             .doc(widget.activity.itineraryFirestoreId)
             .collection('activities')
             .doc(widget.docId)
-            .set(updated.toMap());
+            .set(updated.toMap(), SetOptions(merge: true));
       } else {
-        await DatabaseHelper.instance.insertActivity(updated); // SQLite path
+        // ✅ Sync to Firestore even on Android
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(widget.ownerUid)
+            .collection('itineraries')
+            .doc(widget.activity.itineraryFirestoreId)
+            .collection('activities')
+            .doc(widget.docId)
+            .set(updated.toMap(), SetOptions(merge: true));
+
+        // (Optional) Still update local cache
+        await DatabaseHelper.instance.insertActivity(updated);
       }
 
       final itineraryDoc = await FirebaseFirestore.instance
           .collection('users')
-          .doc(uid)
+          .doc(widget.ownerUid)
           .collection('itineraries')
           .doc(widget.activity.itineraryFirestoreId)
           .get();
@@ -81,11 +97,7 @@ class _EditActivityPageState extends State<EditActivityPage> {
       final itinerary =
           Itinerary.fromMap(itineraryDoc.data()!, firestoreId: itineraryDoc.id);
 
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => TripDetailsPage(trip: itinerary)),
-        (route) => route.isFirst,
-      );
+      Navigator.pop(context, 'updated');
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Failed to update activity: $e")),
@@ -95,6 +107,19 @@ class _EditActivityPageState extends State<EditActivityPage> {
 
   @override
   Widget build(BuildContext context) {
+    final userUid = FirebaseAuth.instance.currentUser?.uid;
+    if (widget.isViewer) {
+      Future.microtask(() {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content:
+                  Text("You don't have permission to edit this activity.")),
+        );
+      });
+      return const Scaffold(body: SizedBox());
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('Edit Activity')),
       body: Padding(
@@ -104,11 +129,13 @@ class _EditActivityPageState extends State<EditActivityPage> {
           child: SingleChildScrollView(
             child: Column(
               children: [
-                _buildField('Name', _nameController),
-                _buildField('Type', _typeController),
-                _buildField('Location', _locationController),
+                _buildField('Name', _nameController, isRequired: true),
+                _buildField('Type', _typeController, isRequired: true),
+                _buildField('Location', _locationController, isRequired: true),
                 DateTimeField(
-                    controller: _dateTimeController, label: 'Date & Time'),
+                    controller: _dateTimeController,
+                    label: 'Date & Time',
+                    isRequired: true),
                 _buildField('Duration', _durationController),
                 _buildField('Notes', _notesController),
                 const SizedBox(height: 20),
@@ -124,15 +151,39 @@ class _EditActivityPageState extends State<EditActivityPage> {
     );
   }
 
-  Widget _buildField(String label, TextEditingController controller) {
+  Widget _buildField(String label, TextEditingController controller,
+      {bool isRequired = false}) {
+    final themeColor = Theme.of(context).textTheme.bodySmall?.color;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: TextFormField(
         controller: controller,
-        decoration: InputDecoration(labelText: label),
-        validator: (value) => value == null || value.trim().isEmpty
-            ? 'Please enter $label'
-            : null,
+        decoration: InputDecoration(
+          label: RichText(
+            text: TextSpan(
+              text: label,
+              style: TextStyle(
+                fontSize: 16,
+                color: themeColor,
+              ),
+              children: isRequired
+                  ? const [
+                      TextSpan(
+                        text: ' *',
+                        style: TextStyle(color: Colors.red),
+                      )
+                    ]
+                  : [],
+            ),
+          ),
+        ),
+        validator: (value) {
+          if (isRequired && (value == null || value.trim().isEmpty)) {
+            return 'Please enter $label';
+          }
+          return null;
+        },
       ),
     );
   }

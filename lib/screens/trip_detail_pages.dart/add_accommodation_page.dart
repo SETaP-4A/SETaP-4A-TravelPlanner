@@ -10,8 +10,10 @@ import 'package:setap4a/widgets/date_picker_field.dart';
 
 class AddAccommodationPage extends StatefulWidget {
   final String itineraryFirestoreId;
+  final String ownerUid;
 
-  const AddAccommodationPage({super.key, required this.itineraryFirestoreId});
+  const AddAccommodationPage(
+      {super.key, required this.itineraryFirestoreId, required this.ownerUid});
 
   @override
   State<AddAccommodationPage> createState() => _AddAccommodationPageState();
@@ -24,8 +26,7 @@ class _AddAccommodationPageState extends State<AddAccommodationPage> {
   final TextEditingController _locationController = TextEditingController();
   final TextEditingController _checkInDateController = TextEditingController();
   final TextEditingController _checkOutDateController = TextEditingController();
-  final TextEditingController _bookingConfirmationController =
-      TextEditingController();
+  final TextEditingController _bookingController = TextEditingController();
   final TextEditingController _roomTypeController = TextEditingController();
   final TextEditingController _pricePerNightController =
       TextEditingController();
@@ -59,7 +60,7 @@ class _AddAccommodationPageState extends State<AddAccommodationPage> {
       location: _locationController.text.trim(),
       checkInDate: _checkInDateController.text.trim(),
       checkOutDate: _checkOutDateController.text.trim(),
-      bookingConfirmation: _bookingConfirmationController.text.trim(),
+      bookingConfirmation: _bookingController.text.trim(),
       roomType: _roomTypeController.text.trim(),
       pricePerNight:
           double.tryParse(_pricePerNightController.text.trim()) ?? 0.0,
@@ -71,7 +72,7 @@ class _AddAccommodationPageState extends State<AddAccommodationPage> {
       if (kIsWeb) {
         await FirebaseFirestore.instance
             .collection('users')
-            .doc(user.uid)
+            .doc(widget.ownerUid)
             .collection('itineraries')
             .doc(widget.itineraryFirestoreId)
             .collection('accommodations')
@@ -97,19 +98,18 @@ class _AddAccommodationPageState extends State<AddAccommodationPage> {
   }
 
   Future<Itinerary> _fetchTripByFirestoreId(String firestoreId) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) throw Exception("User not signed in");
-
     final doc = await FirebaseFirestore.instance
         .collection('users')
-        .doc(uid)
+        .doc(widget.ownerUid)
         .collection('itineraries')
         .doc(firestoreId)
         .get();
 
     if (!doc.exists) throw Exception("Trip not found");
 
-    return Itinerary.fromMap(doc.data()!, firestoreId: doc.id);
+    final rawData = doc.data()!;
+    return Itinerary.fromMap(rawData, firestoreId: doc.id)
+        .copyWith(permission: 'editor');
   }
 
   @override
@@ -123,15 +123,19 @@ class _AddAccommodationPageState extends State<AddAccommodationPage> {
           child: SingleChildScrollView(
             child: Column(
               children: [
-                _buildField('Name', _nameController),
-                _buildField('Location', _locationController),
+                _buildField('Name', _nameController, isRequired: true),
+                _buildField('Location', _locationController, isRequired: true),
                 DatePickerField(
-                    controller: _checkInDateController, label: 'Check-In Date'),
+                  controller: _checkInDateController,
+                  label: 'Check-In Date',
+                  isRequired: true,
+                ),
                 DatePickerField(
-                    controller: _checkOutDateController,
-                    label: 'Check-Out Date'),
-                _buildField(
-                    'Booking Confirmation', _bookingConfirmationController),
+                  controller: _checkOutDateController,
+                  label: 'Check-Out Date',
+                  isRequired: true,
+                ),
+                _buildField('Booking Confirmation', _bookingController),
                 _buildField('Room Type', _roomTypeController),
                 _buildField('Price per Night', _pricePerNightController),
                 _buildField('Facilities', _facilitiesController),
@@ -149,15 +153,32 @@ class _AddAccommodationPageState extends State<AddAccommodationPage> {
   }
 
   Widget _buildField(String label, TextEditingController controller,
-      {bool isDate = false}) {
+      {bool isRequired = false}) {
+    final themeColor = Theme.of(context).textTheme.bodySmall?.color;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: TextFormField(
         controller: controller,
-        readOnly: isDate,
-        decoration: InputDecoration(labelText: label),
-        validator: (value) => value == null || value.trim().isEmpty
-            ? 'Please enter $label'
+        decoration: InputDecoration(
+          label: RichText(
+            text: TextSpan(
+              text: label,
+              style: TextStyle(fontSize: 16, color: themeColor),
+              children: isRequired
+                  ? const [
+                      TextSpan(
+                        text: ' *',
+                        style: TextStyle(color: Colors.red),
+                      )
+                    ]
+                  : [],
+            ),
+          ),
+          border: const UnderlineInputBorder(),
+        ),
+        validator: isRequired && (controller.text.trim().isEmpty)
+            ? (_) => 'Please enter $label'
             : null,
       ),
     );

@@ -14,7 +14,7 @@ import 'package:setap4a/screens/trip_pages/edit_trip_page.dart';
 import 'package:setap4a/db/database_helper.dart';
 import 'package:setap4a/services/auth_service.dart';
 import 'package:setap4a/screens/trip_detail_pages.dart/edit_flight_page.dart';
-import 'package:setap4a/widgets/trip_card.dart';
+import 'package:setap4a/utils/formatters.dart';
 import 'package:setap4a/utils/dialog_utils.dart';
 import 'package:setap4a/widgets/sectioned_item_list.dart';
 
@@ -37,22 +37,68 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
   StreamSubscription? _accommodationSub;
   StreamSubscription? _activitySub;
   StreamSubscription? _collaboratorsSub;
+  StreamSubscription? _tripDocSub;
 
   @override
   void initState() {
     super.initState();
     trip = widget.trip;
+    _listenToTripDoc();
+    _loadLatestTripDetails();
     _listenToSubcollections();
     _listenToCollaborators();
   }
 
   @override
   void dispose() {
+    _tripDocSub?.cancel();
     _flightSub?.cancel();
     _accommodationSub?.cancel();
     _activitySub?.cancel();
     _collaboratorsSub?.cancel();
     super.dispose();
+  }
+
+  void _listenToTripDoc() {
+    final uid = trip.ownerUid;
+    final tripId = trip.firestoreId;
+    if (uid == null || tripId == null) return;
+
+    _tripDocSub = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('itineraries')
+        .doc(tripId)
+        .snapshots()
+        .listen((doc) {
+      if (doc.exists) {
+        final updated = Itinerary.fromMap(doc.data()!, firestoreId: tripId);
+        setState(() {
+          trip = updated.copyWith(permission: trip.permission); // maintain role
+        });
+      }
+    });
+  }
+
+  Future<void> _loadLatestTripDetails() async {
+    final uid = trip.ownerUid;
+    final tripId = trip.firestoreId;
+    if (uid == null || tripId == null) return;
+
+    final snapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('itineraries')
+        .doc(tripId)
+        .get();
+
+    if (snapshot.exists) {
+      final latestTrip =
+          Itinerary.fromMap(snapshot.data()!, firestoreId: tripId);
+      setState(() {
+        trip = latestTrip.copyWith(permission: trip.permission); // Preserve
+      });
+    }
   }
 
   void _listenToSubcollections() {
@@ -109,7 +155,12 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => EditFlightPage(flight: flightModel, docId: docId),
+        builder: (_) => EditFlightPage(
+          flight: flightModel,
+          docId: docId,
+          isViewer: trip.permission == 'viewer',
+          ownerUid: trip.ownerUid!,
+        ),
       ),
     );
   }
@@ -172,6 +223,8 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
         builder: (_) => EditAccommodationPage(
           accommodation: accommodationModel,
           docId: docId,
+          isViewer: trip.permission == 'viewer',
+          ownerUid: trip.ownerUid!,
         ),
       ),
     );
@@ -215,6 +268,8 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
         builder: (_) => EditActivityPage(
           activity: activityModel,
           docId: docId,
+          ownerUid: trip.ownerUid!, // 👈
+          isViewer: trip.permission == 'viewer', // 👈
         ),
       ),
     );
@@ -291,6 +346,32 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
       final List<String> collaboratorUids =
           List<String>.from(doc.data()?['collaborators'] ?? []);
 
+      final currentUserUid = FirebaseAuth.instance.currentUser?.uid;
+
+// 🚨 If current user has been removed from collaborators, show dialog & pop
+      if (trip.ownerUid != currentUserUid &&
+          !collaboratorUids.contains(currentUserUid)) {
+        if (mounted) {
+          await Future.delayed(Duration.zero); // ensure context is valid
+          showDialog(
+            context: context,
+            builder: (_) => AlertDialog(
+              title: const Text("Removed from Trip"),
+              content: const Text(
+                  "You have been removed from this trip by the owner."),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context)
+                      .popUntil((route) => route.isFirst), // go back safely
+                  child: const Text("OK"),
+                ),
+              ],
+            ),
+          );
+        }
+        return;
+      }
+
       final List<Map<String, dynamic>> fetched = [];
 
       for (final uid in collaboratorUids) {
@@ -315,20 +396,24 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(trip.title ?? "Trip Details"),
+        title: Text(trip.title ?? 'Trip Details'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () async {
-              final updated = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => EditTripPage(trip: trip),
-                ),
-              );
-              if (updated == true) Navigator.pop(context, true);
-            },
-          )
+          if ((trip.permission ?? 'viewer') != 'viewer')
+            IconButton(
+              icon: const Icon(Icons.edit),
+              tooltip: 'Edit Trip',
+              onPressed: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => EditTripPage(trip: trip),
+                  ),
+                );
+                if (result == true) {
+                  _loadLatestTripDetails(); // reload the updated trip from Firestore
+                }
+              },
+            ),
         ],
       ),
       body: SingleChildScrollView(
@@ -345,57 +430,77 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
             if (collaborators.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(bottom: 16.0),
-                child: Row(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.group, color: Colors.blueAccent),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: RichText(
-                        text: TextSpan(
-                          style: const TextStyle(
-                              fontSize: 16, color: Colors.black),
-                          children: [
-                            const TextSpan(
-                              text: "Shared with: ",
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            TextSpan(
-                              text: collaborators
-                                  .map((c) => c['name'])
-                                  .join(', '),
-                            ),
-                          ],
+                    Row(
+                      children: [
+                        const Icon(Icons.group, color: Colors.blueAccent),
+                        const SizedBox(width: 12),
+                        Text(
+                          "Shared with:",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
                         ),
-                      ),
+                      ],
                     ),
+                    const SizedBox(height: 8),
+                    ...collaborators.map((c) {
+                      final isOwner = trip.ownerUid ==
+                          FirebaseAuth.instance.currentUser?.uid;
+                      final currentUserUid =
+                          FirebaseAuth.instance.currentUser?.uid;
+
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            c['name'],
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                          if (isOwner && c['uid'] != currentUserUid)
+                            IconButton(
+                              icon: const Icon(Icons.remove_circle,
+                                  color: Colors.red),
+                              tooltip: 'Remove from trip',
+                              onPressed: () => _removeCollaborator(c['uid']),
+                            ),
+                        ],
+                      );
+                    }).toList(),
                   ],
                 ),
               ),
             SectionedItemList(
               title: "Flights",
+              icon: Icons.flight,
               items: flights,
-              formatter: (flight) =>
-                  "${flight['airline']} - ${flight['flightNumber']} (${flight['departureAirport']} → ${flight['arrivalAirport']})",
-              onEdit: _editFlight,
+              formatter: formatFlight,
+              onEdit: trip.permission == 'editor' ? _editFlight : null,
               onDelete: _deleteFlight,
               isViewer: trip.permission == 'viewer',
             ),
             SectionedItemList(
               title: "Accommodations",
+              icon: Icons.hotel,
               items: accommodations,
-              formatter: (a) =>
-                  "${a['name']} in ${a['location']} (${a['checkInDate']} → ${a['checkOutDate']})",
-              onEdit: _editAccommodation,
+              formatter: formatAccommodation,
+              onEdit: trip.permission == 'editor' ? _editAccommodation : null,
               onDelete: _deleteAccommodation,
               isViewer: trip.permission == 'viewer',
             ),
             SectionedItemList(
               title: "Activities",
+              icon: Icons.place,
               items: activities,
-              formatter: (a) =>
-                  "${a['name']} - ${a['location']} at ${a['dateTime']}",
-              onEdit: _editActivity,
+              formatter: formatActivity,
+              onEdit: trip.permission == 'editor' ? _editActivity : null,
               onDelete: _deleteActivity,
               isViewer: trip.permission == 'viewer',
             ),
@@ -405,6 +510,49 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => FriendSelectionPage(trip: trip),
+                          ),
+                        );
+
+                        if (result == true) {
+                          final user = FirebaseAuth.instance.currentUser;
+                          final tripId = trip.firestoreId;
+
+                          if (user != null && tripId != null) {
+                            final updatedDoc = await FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(user.uid)
+                                .collection('itineraries')
+                                .doc(tripId)
+                                .get();
+
+                            final updatedTrip = Itinerary.fromMap(
+                              updatedDoc.data()!,
+                              firestoreId: tripId,
+                            );
+
+                            setState(() {
+                              trip = updatedTrip;
+                              _listenToCollaborators();
+                            });
+                          }
+                        }
+                      },
+                      icon: const Icon(Icons.group_add),
+                      label: const Text("Add Collaborators"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blueAccent,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 12),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                     if (trip.ownerUid == FirebaseAuth.instance.currentUser?.uid)
                       ElevatedButton.icon(
                         onPressed: () async {
@@ -451,49 +599,6 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
                               horizontal: 20, vertical: 12),
                         ),
                       ),
-                    const SizedBox(height: 12),
-                    ElevatedButton.icon(
-                      onPressed: () async {
-                        final result = await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => FriendSelectionPage(trip: trip),
-                          ),
-                        );
-
-                        if (result == true) {
-                          final user = FirebaseAuth.instance.currentUser;
-                          final tripId = trip.firestoreId;
-
-                          if (user != null && tripId != null) {
-                            final updatedDoc = await FirebaseFirestore.instance
-                                .collection('users')
-                                .doc(user.uid)
-                                .collection('itineraries')
-                                .doc(tripId)
-                                .get();
-
-                            final updatedTrip = Itinerary.fromMap(
-                              updatedDoc.data()!,
-                              firestoreId: tripId,
-                            );
-
-                            setState(() {
-                              trip = updatedTrip;
-                              _listenToCollaborators();
-                            });
-                          }
-                        }
-                      },
-                      icon: const Icon(Icons.group_add),
-                      label: const Text("Add Collaborators"),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blueAccent,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 12),
-                      ),
-                    ),
                     const SizedBox(height: 12),
                     if (trip.ownerUid !=
                             FirebaseAuth.instance.currentUser?.uid &&
@@ -558,6 +663,63 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
                 ),
               ),
             ],
+            if (trip.permission == 'viewer' &&
+                trip.ownerUid != FirebaseAuth.instance.currentUser?.uid &&
+                (trip.collaborators ?? [])
+                    .contains(FirebaseAuth.instance.currentUser?.uid))
+              Center(
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text("Leave Trip"),
+                        content: const Text(
+                            "Are you sure you want to leave this trip?"),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text("Cancel"),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text("Leave",
+                                style: TextStyle(color: Colors.red)),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (confirm == true) {
+                      final currentUid = FirebaseAuth.instance.currentUser?.uid;
+                      if (currentUid != null && trip.firestoreId != null) {
+                        await FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(trip.ownerUid)
+                            .collection('itineraries')
+                            .doc(trip.firestoreId)
+                            .update({
+                          'collaborators': FieldValue.arrayRemove([currentUid])
+                        });
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('You have left the trip.')),
+                        );
+                        Navigator.pop(context, true);
+                      }
+                    }
+                  },
+                  icon: const Icon(Icons.exit_to_app),
+                  label: const Text("Leave Trip"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 12),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -577,11 +739,18 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
           Expanded(
             child: RichText(
               text: TextSpan(
-                style: const TextStyle(fontSize: 16, color: Colors.black),
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
                 children: [
                   TextSpan(
-                      text: "$label: ",
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                    text: "$label: ",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
                   TextSpan(text: value),
                 ],
               ),
