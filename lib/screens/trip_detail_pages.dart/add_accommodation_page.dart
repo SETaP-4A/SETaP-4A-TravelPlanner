@@ -177,9 +177,12 @@ class _AddAccommodationPageState extends State<AddAccommodationPage> {
           ),
           border: const UnderlineInputBorder(),
         ),
-        validator: isRequired && (controller.text.trim().isEmpty)
-            ? (_) => 'Please enter $label'
-            : null,
+        validator: (value) {
+          if (isRequired && (value == null || value.trim().isEmpty)) {
+            return 'Please enter $label';
+          }
+          return null;
+        },
       ),
     );
   }

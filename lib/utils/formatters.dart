@@ -27,7 +27,7 @@ String formatAccommodation(Map<String, dynamic> accommodation) {
 
   String formatDate(String raw) {
     try {
-      final parsed = DateFormat('MMM dd, yyyy').parse(raw);
+      final parsed = DateFormat('yyyy-MM-dd').parse(raw);
       return DateFormat('MMM dd, yyyy').format(parsed);
     } catch (_) {
       return raw;
