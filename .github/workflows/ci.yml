@@ -40,19 +40,24 @@ jobs:
           mv cmdline-tools latest
 
       - name: Accept Android SDK licenses
+        env:
+          ANDROID_SDK_ROOT: $HOME/android-sdk
+          PATH: $HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/emulator:$HOME/android-sdk/platform-tools:$PATH
         run: |
-          export ANDROID_SDK_ROOT=$HOME/android-sdk
-          export PATH=$HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/emulator:$HOME/android-sdk/platform-tools:$PATH
           yes | sdkmanager --licenses
           
       - name: Install Android SDK components
+        env:
+          ANDROID_SDK_ROOT: $HOME/android-sdk
+          PATH: $HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/emulator:$HOME/android-sdk/platform-tools:$PATH
         run: | 
-          export ANDROID_SDK_ROOT=$HOME/android-sdk
-          export PATH=$HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/emulator:$HOME/android-sdk/platform-tools:$PATH
           sdkmanager --install "platforms;android-34" "system-images;android-34;google_apis;x86_64" "emulator"
 
          
-      - name: Create Android emulator (Pixel 7)
+      - name: Create Android emulator (Pixel 7) - Added path avdmanager
+        env:
+          ANDROID_SDK_ROOT: $HOME/android-sdk
+          PATH: $HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/emulator:$HOME/android-sdk/platform-tools:$PATH
         run: |
           echo "no" | avdmanager create avd -n pixel_7 -k "system-images;android-34;google_apis;x86_64" -d "pixel_7"
 
