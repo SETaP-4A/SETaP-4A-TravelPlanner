@@ -19,9 +19,9 @@ class FirebaseService {
             .doc(userId)
             .collection('itineraries')
             .add(itinerary);
-        print("✅ Itinerary synced to Firebase.");
+        print("Itinerary synced to Firebase.");
       } catch (e) {
-        print("❌ Error syncing itinerary: $e");
+        print("Error syncing itinerary: $e");
       }
     }
   }
@@ -37,9 +37,9 @@ class FirebaseService {
             .doc(itineraryId)
             .collection('accommodations')
             .add(accommodation);
-        print("✅ Accommodation synced to Firebase.");
+        print("Accommodation synced to Firebase.");
       } catch (e) {
-        print("❌ Error syncing accommodation: $e");
+        print("Error syncing accommodation: $e");
       }
     }
   }
@@ -55,9 +55,9 @@ class FirebaseService {
             .doc(itineraryId)
             .collection('flights')
             .add(flight);
-        print("✅ Flight synced to Firebase.");
+        print("Flight synced to Firebase.");
       } catch (e) {
-        print("❌ Error syncing flight: $e");
+        print("Error syncing flight: $e");
       }
     }
   }
@@ -73,9 +73,9 @@ class FirebaseService {
             .doc(itineraryId)
             .collection('activities')
             .add(activity);
-        print("✅ Activity synced to Firebase.");
+        print("Activity synced to Firebase.");
       } catch (e) {
-        print("❌ Error syncing activity: $e");
+        print("Error syncing activity: $e");
       }
     }
   }
@@ -89,9 +89,9 @@ class FirebaseService {
             .doc(userId)
             .collection('packingList')
             .add(item);
-        print("✅ Packing list item synced to Firebase.");
+        print("Packing list item synced to Firebase.");
       } catch (e) {
-        print("❌ Error syncing packing list: $e");
+        print("Error syncing packing list: $e");
       }
     }
   }
@@ -105,7 +105,7 @@ class FirebaseService {
   }
 
   Future<List<Map<String, dynamic>>> searchUsersByUsername(String query) async {
-    print("🔍 Searching for username: $query");
+    print("Searching for username: $query");
 
     if (query.isEmpty) return [];
 
@@ -113,22 +113,22 @@ class FirebaseService {
         await _firestore.collection('usernames').doc(query).get();
 
     if (!usernameDoc.exists) {
-      print("❌ Username not found in 'usernames' collection.");
+      print("Username not found in 'usernames' collection.");
       return [];
     }
 
     final uid = usernameDoc['uid'];
-    print("✅ Found UID: $uid for username: $query");
+    print("Found UID: $uid for username: $query");
 
     final userDoc = await _firestore.collection('users').doc(uid).get();
 
     if (!userDoc.exists) {
-      print("❌ UID $uid not found in 'users' collection.");
+      print("UID $uid not found in 'users' collection.");
       return [];
     }
 
     final data = userDoc.data();
-    print("✅ Final user data: $data");
+    print("Final user data: $data");
 
     return [data!..['uid'] = uid];
   }
@@ -161,7 +161,7 @@ class FirebaseService {
 
     return querySnapshot.docs
         .where((doc) => doc.id != currentUser.uid)
-        .map((doc) => {'uid': doc.id, ...doc.data()!})
+        .map((doc) => {'uid': doc.id, ...doc.data()})
         .toList();
   }
 

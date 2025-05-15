@@ -212,7 +212,7 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
   void _editAccommodation(Map<String, dynamic> accommodation) {
     final String? docId = accommodation['id']?.toString();
     if (docId == null) {
-      print("❌ ERROR: Accommodation document ID is null");
+      print("ERROR: Accommodation document ID is null");
       return;
     }
 
@@ -257,7 +257,7 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
   void _editActivity(Map<String, dynamic> activity) {
     final String? docId = activity['id']?.toString();
     if (docId == null) {
-      print("❌ ERROR: Activity document ID is null");
+      print("ERROR: Activity document ID is null");
       return;
     }
 
@@ -268,8 +268,8 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
         builder: (_) => EditActivityPage(
           activity: activityModel,
           docId: docId,
-          ownerUid: trip.ownerUid!, // 👈
-          isViewer: trip.permission == 'viewer', // 👈
+          ownerUid: trip.ownerUid!,
+          isViewer: trip.permission == 'viewer',
         ),
       ),
     );
@@ -348,7 +348,7 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
 
       final currentUserUid = FirebaseAuth.instance.currentUser?.uid;
 
-// 🚨 If current user has been removed from collaborators, show dialog & pop
+// If current user has been removed from collaborators, show dialog & pop
       if (trip.ownerUid != currentUserUid &&
           !collaboratorUids.contains(currentUserUid)) {
         if (mounted) {
@@ -397,6 +397,8 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(trip.title ?? 'Trip Details'),
+
+        // Only show the edit icon if the user is not a 'viewer'
         actions: [
           if ((trip.permission ?? 'viewer') != 'viewer')
             IconButton(
@@ -410,7 +412,7 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
                   ),
                 );
                 if (result == true) {
-                  _loadLatestTripDetails(); // reload the updated trip from Firestore
+                  _loadLatestTripDetails(); // Reload trip data after editing
                 }
               },
             ),
@@ -422,11 +424,15 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 20),
+
+            // Trip metadata sections (date, location, etc.)
             _buildSection(Icons.calendar_month, "Start Date", trip.startDate),
             _buildSection(Icons.event, "End Date", trip.endDate),
             _buildSection(Icons.place, "Destination", trip.location),
             _buildSection(Icons.description, "Description", trip.description),
             _buildSection(Icons.comment, "Comments", trip.comments),
+
+            // List of collaborators shown only if trip is shared
             if (collaborators.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(bottom: 16.0),
@@ -448,6 +454,8 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
                       ],
                     ),
                     const SizedBox(height: 8),
+
+                    // List of collaborator names with remove option (if current user is the owner)
                     ...collaborators.map((c) {
                       final isOwner = trip.ownerUid ==
                           FirebaseAuth.instance.currentUser?.uid;
@@ -477,6 +485,8 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
                   ],
                 ),
               ),
+
+            // Sections for flights, accommodations, activities
             SectionedItemList(
               title: "Flights",
               icon: Icons.flight,
@@ -504,12 +514,16 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
               onDelete: _deleteActivity,
               isViewer: trip.permission == 'viewer',
             ),
+
             const SizedBox(height: 30),
+
+            // Action buttons: visible only to users with edit rights
             if (trip.permission != 'viewer') ...[
               Center(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
+                    // Invite friends as collaborators
                     ElevatedButton.icon(
                       onPressed: () async {
                         final result = await Navigator.push(
@@ -523,6 +537,7 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
                           final user = FirebaseAuth.instance.currentUser;
                           final tripId = trip.firestoreId;
 
+                          // Refresh trip after collaborators are added
                           if (user != null && tripId != null) {
                             final updatedDoc = await FirebaseFirestore.instance
                                 .collection('users')
@@ -552,7 +567,10 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
                             horizontal: 20, vertical: 12),
                       ),
                     ),
+
                     const SizedBox(height: 12),
+
+                    // Owner-only: Delete trip
                     if (trip.ownerUid == FirebaseAuth.instance.currentUser?.uid)
                       ElevatedButton.icon(
                         onPressed: () async {
@@ -582,7 +600,7 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
                                   .deleteItinerary(trip);
                               Navigator.pop(context, true);
                             } catch (e) {
-                              print('❌ Failed to delete trip: $e');
+                              print('Failed to delete trip: $e');
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                     content: Text('Failed to delete trip: $e')),
@@ -599,7 +617,10 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
                               horizontal: 20, vertical: 12),
                         ),
                       ),
+
                     const SizedBox(height: 12),
+
+                    // Editor-level users: Option to leave trip
                     if (trip.ownerUid !=
                             FirebaseAuth.instance.currentUser?.uid &&
                         (trip.collaborators ?? [])
@@ -663,6 +684,8 @@ class _TripDetailsPageState extends State<TripDetailsPage> {
                 ),
               ),
             ],
+
+            // Separate logic for viewer-only users who can leave trip
             if (trip.permission == 'viewer' &&
                 trip.ownerUid != FirebaseAuth.instance.currentUser?.uid &&
                 (trip.collaborators ?? [])

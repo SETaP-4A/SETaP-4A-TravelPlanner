@@ -1,9 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:setap4a/models/activity.dart';
-import 'package:setap4a/models/itinerary.dart';
 import 'package:setap4a/db/database_helper.dart';
 import 'package:setap4a/widgets/date_time_field.dart';
 
@@ -60,8 +58,6 @@ class _EditActivityPageState extends State<EditActivityPage> {
       itineraryFirestoreId: widget.activity.itineraryFirestoreId,
     );
 
-    final uid = widget.ownerUid;
-
     try {
       if (kIsWeb) {
         await FirebaseFirestore.instance
@@ -73,7 +69,7 @@ class _EditActivityPageState extends State<EditActivityPage> {
             .doc(widget.docId)
             .set(updated.toMap(), SetOptions(merge: true));
       } else {
-        // ✅ Sync to Firestore even on Android
+        // Sync to Firestore even on Android
         await FirebaseFirestore.instance
             .collection('users')
             .doc(widget.ownerUid)
@@ -83,19 +79,9 @@ class _EditActivityPageState extends State<EditActivityPage> {
             .doc(widget.docId)
             .set(updated.toMap(), SetOptions(merge: true));
 
-        // (Optional) Still update local cache
+        // Still update local cache
         await DatabaseHelper.instance.insertActivity(updated);
       }
-
-      final itineraryDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.ownerUid)
-          .collection('itineraries')
-          .doc(widget.activity.itineraryFirestoreId)
-          .get();
-
-      final itinerary =
-          Itinerary.fromMap(itineraryDoc.data()!, firestoreId: itineraryDoc.id);
 
       Navigator.pop(context, 'updated');
     } catch (e) {
@@ -107,7 +93,6 @@ class _EditActivityPageState extends State<EditActivityPage> {
 
   @override
   Widget build(BuildContext context) {
-    final userUid = FirebaseAuth.instance.currentUser?.uid;
     if (widget.isViewer) {
       Future.microtask(() {
         Navigator.of(context).pop();

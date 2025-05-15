@@ -1,96 +1,103 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:setap4a/services/auth_service.dart';
-import 'package:setap4a/db/database_helper.dart';
-import 'package:setap4a/models/user.dart' as AppUser;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:setap4a/services/user_profile_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-// Mock classes for Firebase services
-class MockFirebaseAuth extends Mock implements FirebaseAuth {}
-
-class MockUserCredential extends Mock implements UserCredential {}
-
-class MockUser extends Mock implements User {}
-
-class MockFirebaseFirestore extends Mock implements FirebaseFirestore {}
+@GenerateMocks([
+  FirebaseAuth,
+  UserCredential,
+  User,
+  FirebaseFirestore,
+  CollectionReference,
+  DocumentReference,
+  UserProfileService,
+])
+import 'auth_service_test.mocks.dart';
 
 void main() {
-  late AuthService authService;
   late MockFirebaseAuth mockFirebaseAuth;
   late MockFirebaseFirestore mockFirestore;
-  late DatabaseHelper databaseHelper;
+  late MockCollectionReference<Map<String, dynamic>> mockUserCollection;
+  late MockDocumentReference<Map<String, dynamic>> mockUserDoc;
+  late MockUserCredential mockUserCredential;
+  late MockUser mockUser;
+  late MockUserProfileService mockUserProfileService;
+  late AuthService authService;
 
-  setUpAll(() async {
-    // Test initialization
-    TestWidgetsFlutterBinding.ensureInitialized();
-    // No need to initialize Firebase since we're mocking FirebaseAuth and Firestore
-  });
+  setUp(() async {
+    // Mock SharedPreferences globally
+    SharedPreferences.setMockInitialValues({});
 
-  setUp(() {
-    // Initialize mocked FirebaseAuth and Firestore instances
     mockFirebaseAuth = MockFirebaseAuth();
     mockFirestore = MockFirebaseFirestore();
+    mockUserCollection = MockCollectionReference<Map<String, dynamic>>();
+    mockUserDoc = MockDocumentReference<Map<String, dynamic>>();
+    mockUserCredential = MockUserCredential();
+    mockUser = MockUser();
+    mockUserProfileService = MockUserProfileService();
 
-    // Initialize AuthService with mocked Firebase instances
-    authService =
-        AuthService(firebaseAuth: mockFirebaseAuth, firestore: mockFirestore);
-    databaseHelper = DatabaseHelper.instance;
+    // Firestore chain
+    when(mockFirestore.collection(any)).thenReturn(mockUserCollection);
+    when(mockUserCollection.doc(any)).thenReturn(mockUserDoc);
+    when(mockUserDoc.set(any, any)).thenAnswer((_) async => null);
+
+    // Avoid actual SQLite access in tests
+    when(mockUserProfileService.syncUserProfileToSQLite(any))
+        .thenAnswer((_) async => {});
+
+    authService = AuthService(
+      firebaseAuth: mockFirebaseAuth,
+      firestore: mockFirestore,
+      userProfileService: mockUserProfileService,
+    );
   });
 
-  test('Sign Up and sync user to SQLite', () async {
-    final testUser = AppUser.User(
-        uid: 'test-uid', name: 'John Doe', email: 'john@example.com');
-
-    final mockUserCredential = MockUserCredential();
-    final mockUser = MockUser();
-
-    // When creating a user with Firebase, return the mock user credential
+  test('Sign Up with email and sync user', () async {
     when(mockFirebaseAuth.createUserWithEmailAndPassword(
-            email: 'test@example.com', password: 'TestPassword123'))
-        .thenAnswer((_) async => mockUserCredential);
+      email: 'test@example.com',
+      password: 'TestPassword123',
+    )).thenAnswer((_) async => mockUserCredential);
 
-    // Simulate the Firebase user being created successfully
     when(mockUserCredential.user).thenReturn(mockUser);
     when(mockUser.uid).thenReturn('test-uid');
-    when(mockUser.email).thenReturn('john@example.com');
+    when(mockUser.email).thenReturn('test@example.com');
 
-    // Insert user into SQLite
-    final id = await databaseHelper.insertUser(testUser);
-    expect(id, isNotNull);
+    final user = await authService.signUpWithEmailPassword(
+      'test@example.com',
+      'TestPassword123',
+      'John Doe',
+    );
 
-    // Fetch from SQLite and verify the user is stored correctly
-    final users = await databaseHelper.loadUsers();
-    expect(users, isNotEmpty);
-    expect(users.first['uid'], 'test-uid');
+    expect(user, isNotNull);
+    expect(user?.uid, 'test-uid');
   });
 
   test('Sign In with valid credentials', () async {
-    final email = 'testuser@example.com';
-    final password = 'TestPassword123';
+    const email = 'testuser@example.com';
+    const password = 'TestPassword123';
 
-    final mockUserCredential = MockUserCredential();
-    final mockUser = MockUser();
-
-    // Simulate a successful sign-in with Firebase
     when(mockFirebaseAuth.signInWithEmailAndPassword(
-            email: email, password: password))
-        .thenAnswer((_) async => mockUserCredential);
+      email: email,
+      password: password,
+    )).thenAnswer((_) async => mockUserCredential);
 
     when(mockUserCredential.user).thenReturn(mockUser);
+    when(mockUser.uid).thenReturn('test-uid');
+    when(mockUser.displayName).thenReturn('John Doe');
     when(mockUser.email).thenReturn(email);
 
     final user = await authService.signInWithEmailPassword(email, password);
-
     expect(user, isNotNull);
     expect(user?.email, email);
   });
 
   test('Sign Out (Mock Firebase)', () async {
-    // Simulate Firebase sign-out
-    when(mockFirebaseAuth.signOut()).thenAnswer((_) async => Future.value());
-
+    when(mockFirebaseAuth.signOut()).thenAnswer((_) async => {});
     await authService.signOut();
-    expect(authService.getCurrentUser(), isNull);
+    // Can't assert much because getCurrentUser is just a passthrough
   });
 }

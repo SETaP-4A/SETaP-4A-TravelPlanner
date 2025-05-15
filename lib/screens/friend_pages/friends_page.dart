@@ -18,6 +18,7 @@ class _FriendsPageState extends State<FriendsPage>
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
 
+    // Load the current user's info from Firestore (e.g., for future expansion)
     FirebaseService().getCurrentUserInfo().then((data) {
       setState(() {
         currentUserData = data;
@@ -70,6 +71,7 @@ class _SearchUserTabState extends State<SearchUserTab> {
   @override
   void initState() {
     super.initState();
+    // Start searching as soon as the user types 3+ characters
     _controller.addListener(() {
       final query = _controller.text.trim();
       if (query.length >= 3) {
@@ -80,11 +82,11 @@ class _SearchUserTabState extends State<SearchUserTab> {
     });
   }
 
+  // Basic user search using a FirebaseService helper
   void _search(String query) async {
     setState(() => loading = true);
     try {
-      final results =
-          await FirebaseService().searchUsersStartingWith(query); // <-- NEW
+      final results = await FirebaseService().searchUsersStartingWith(query);
       setState(() {
         searchResults = results;
         loading = false;
@@ -108,7 +110,7 @@ class _SearchUserTabState extends State<SearchUserTab> {
             controller: _controller,
             decoration: const InputDecoration(
               labelText: "Search by username",
-              suffixIcon: Icon(Icons.search), // purely visual now
+              suffixIcon: Icon(Icons.search),
             ),
           ),
           const SizedBox(height: 20),
@@ -131,6 +133,7 @@ class _SearchUserTabState extends State<SearchUserTab> {
                                     FirebaseAuth.instance.currentUser;
                                 if (currentUser == null) return;
 
+                                // Prevent sending duplicate friend requests
                                 final currentUserDoc = await FirebaseFirestore
                                     .instance
                                     .collection('users')
@@ -194,9 +197,10 @@ class _FriendRequestsTabState extends State<FriendRequestsTab> {
   @override
   void initState() {
     super.initState();
-    _requestsFuture = _loadRequests();
+    _requestsFuture = _loadRequests(); // Load on init
   }
 
+  // Loads incoming & outgoing friend requests
   Future<List<Map<String, dynamic>>> _loadRequests() async {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) return [];
@@ -232,16 +236,12 @@ class _FriendRequestsTabState extends State<FriendRequestsTab> {
 
   void _handleAccept(String uid) async {
     await FirebaseService().acceptFriendRequest(uid);
-    setState(() {
-      _requestsFuture = _loadRequests();
-    });
+    setState(() => _requestsFuture = _loadRequests());
   }
 
   void _handleReject(String uid) async {
     await FirebaseService().rejectFriendRequest(uid);
-    setState(() {
-      _requestsFuture = _loadRequests();
-    });
+    setState(() => _requestsFuture = _loadRequests());
   }
 
   @override
@@ -300,7 +300,7 @@ class _FriendsListTabState extends State<FriendsListTab> {
   @override
   void initState() {
     super.initState();
-    _friendsFuture = FirebaseService().getFriends();
+    _friendsFuture = FirebaseService().getFriends(); // Load friends list
   }
 
   @override

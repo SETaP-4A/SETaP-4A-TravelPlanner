@@ -35,7 +35,7 @@ class _AddAccommodationPageState extends State<AddAccommodationPage> {
   void _saveAccommodation() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // ✅ Validate that check-in is before check-out
+    // Validates that check-in is before check-out
     final checkIn = DateTime.tryParse(_checkInDateController.text.trim());
     final checkOut = DateTime.tryParse(_checkOutDateController.text.trim());
 

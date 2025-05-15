@@ -1,8 +1,9 @@
 class User {
-  final int? id;
-  final String uid; // Firebase UID
+  final int? id; // Local DB ID (SQLite only)
+  final String
+      uid; // Firebase UID — this uniquely identifies the user across platforms
   final String name;
-  final String email; // Email of the user
+  final String email; // User's email, required for login/account management
 
   User({
     this.id,
@@ -11,23 +12,23 @@ class User {
     required this.email,
   });
 
-  // Convert a User object into a Map for SQLite insertion
+  // Converts the User object into a Map for storing in SQLite
   Map<String, dynamic> toMap() {
     return {
       'id': id,
-      'uid': uid, // Add uid to the map
+      'uid': uid, // Include Firebase UID for syncing or lookup
       'name': name,
-      'email': email, // Add email to the map
+      'email': email,
     };
   }
 
-  // Convert a Map into a User object from SQLite
+  // Reconstructs a User from a Map (e.g., when loading from SQLite)
   factory User.fromMap(Map<String, dynamic> map) {
     return User(
       id: map['id'],
-      uid: map['uid'], // Retrieve uid from the map
+      uid: map['uid'],
       name: map['name'],
-      email: map['email'], // Retrieve email from the map
+      email: map['email'],
     );
   }
 }

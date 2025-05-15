@@ -14,15 +14,18 @@ class FriendSelectionPage extends StatefulWidget {
 
 class _FriendSelectionPageState extends State<FriendSelectionPage> {
   List<Map<String, dynamic>> allFriends = [];
+
+  // Keeps track of which friends are selected and their chosen permission level
   Map<String, String> selectedInvites =
       {}; // uid -> permission ("viewer" or "editor")
 
   @override
   void initState() {
     super.initState();
-    _loadFriends();
+    _loadFriends(); // Fetch user's friends from Firestore on page load
   }
 
+  // Loads the current user's friends from Firestore
   Future<void> _loadFriends() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -31,9 +34,12 @@ class _FriendSelectionPageState extends State<FriendSelectionPage> {
         .collection('users')
         .doc(user.uid)
         .get();
+
     final List<dynamic> friendUids = userDoc.data()?['friends'] ?? [];
 
     final List<Map<String, dynamic>> fetchedFriends = [];
+
+    // Fetch each friend's name for display
     for (final uid in friendUids) {
       final friendDoc =
           await FirebaseFirestore.instance.collection('users').doc(uid).get();
@@ -50,22 +56,25 @@ class _FriendSelectionPageState extends State<FriendSelectionPage> {
     });
   }
 
+  // Adds/removes a friend from the selection list
   void _toggleSelection(String uid) {
     setState(() {
       if (selectedInvites.containsKey(uid)) {
-        selectedInvites.remove(uid);
+        selectedInvites.remove(uid); // Unselect if already selected
       } else {
-        selectedInvites[uid] = 'viewer';
+        selectedInvites[uid] = 'viewer'; // Default permission when selected
       }
     });
   }
 
+  // Updates the permission level for a selected friend
   void _setPermission(String uid, String permission) {
     setState(() {
       selectedInvites[uid] = permission;
     });
   }
 
+  // Sends trip invitations to all selected friends
   Future<void> _sendInvites() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -74,6 +83,7 @@ class _FriendSelectionPageState extends State<FriendSelectionPage> {
       final uid = entry.key;
       final permission = entry.value;
 
+      // Write an invite document into each selected friend's 'tripInvites' subcollection
       await FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
@@ -89,7 +99,7 @@ class _FriendSelectionPageState extends State<FriendSelectionPage> {
       });
     }
 
-    Navigator.pop(context, true); // Indicate completion
+    Navigator.pop(context, true); // Return to previous screen on success
   }
 
   @override

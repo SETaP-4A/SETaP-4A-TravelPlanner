@@ -17,6 +17,7 @@ class AddTripPage extends StatefulWidget {
 class _AddTripPageState extends State<AddTripPage> {
   final _formKey = GlobalKey<FormState>();
 
+  // Controllers for all input fields
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _startDateController = TextEditingController();
   final TextEditingController _endDateController = TextEditingController();
@@ -26,6 +27,7 @@ class _AddTripPageState extends State<AddTripPage> {
 
   final DateFormat _dateFormat = DateFormat('MMMM dd, yyyy');
 
+  // Opens a date picker and assigns selected date to the controller
   Future<void> _selectDate(
       TextEditingController controller, String label) async {
     final initialDate = DateTime.now();
@@ -44,9 +46,11 @@ class _AddTripPageState extends State<AddTripPage> {
     }
   }
 
+  // Handles validation and saving logic when the form is submitted
   void _saveTrip() async {
     if (_formKey.currentState!.validate()) {
       try {
+        // Make sure the start date isn't after the end date
         final start = _dateFormat.parse(_startDateController.text);
         final end = _dateFormat.parse(_endDateController.text);
         if (start.isAfter(end)) {
@@ -59,6 +63,7 @@ class _AddTripPageState extends State<AddTripPage> {
         final firestore = FirebaseFirestore.instance;
 
         if (kIsWeb) {
+          // Web-specific save logic (uses SharedPreferences for UID)
           final prefs = await SharedPreferences.getInstance();
           final uid = prefs.getString('active_uid');
 
@@ -77,7 +82,7 @@ class _AddTripPageState extends State<AddTripPage> {
             comments: _commentsController.text.trim().isEmpty
                 ? null
                 : _commentsController.text.trim(),
-            userId: null,
+            userId: null, // Not needed on web
             ownerUid: uid,
           ).toMap();
 
@@ -87,6 +92,7 @@ class _AddTripPageState extends State<AddTripPage> {
               .collection('itineraries')
               .add(tripMap);
         } else {
+          // Android/iOS logic — also saves to SQLite
           final currentUser = await AuthService.getCurrentLocalUser();
           final newTrip = Itinerary(
             title: _nameController.text.trim(),
@@ -108,9 +114,9 @@ class _AddTripPageState extends State<AddTripPage> {
           await DatabaseHelper.instance.insertItinerary(newTrip);
         }
 
-        Navigator.pop(context, true);
+        Navigator.pop(context, true); // Signal success to the previous screen
       } catch (e) {
-        print('❌ Failed to save trip: $e');
+        print('Failed to save trip: $e');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to save trip: $e')),
         );
@@ -157,6 +163,7 @@ class _AddTripPageState extends State<AddTripPage> {
     );
   }
 
+  // Generic text field builder with optional validation
   Widget _buildTextField(String label, TextEditingController controller,
       {bool isRequired = false}) {
     final themeColor = Theme.of(context).textTheme.bodySmall?.color;
@@ -199,6 +206,7 @@ class _AddTripPageState extends State<AddTripPage> {
     );
   }
 
+  // Date field builder with read-only input and calendar picker
   Widget _buildDateField(String label, TextEditingController controller,
       {bool isRequired = false}) {
     final themeColor = Theme.of(context).textTheme.bodySmall?.color;
@@ -207,7 +215,7 @@ class _AddTripPageState extends State<AddTripPage> {
       padding: const EdgeInsets.only(bottom: 16.0),
       child: TextFormField(
         controller: controller,
-        readOnly: true,
+        readOnly: true, // Prevent manual typing
         onTap: () => _selectDate(controller, label),
         validator: (value) {
           if (isRequired && (value == null || value.trim().isEmpty)) {

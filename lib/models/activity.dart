@@ -1,14 +1,15 @@
 import 'package:flutter/foundation.dart';
 
 class Activity {
-  final String? id;
-  final String itineraryFirestoreId;
-  final String name;
-  final String type;
+  final String?
+      id; // Optional local identifier, useful for local DBs or UI keys
+  final String itineraryFirestoreId; // ID of the trip this activity belongs to
+  final String name; // e.g., "Museum Visit"
+  final String type; // e.g., "Cultural", "Adventure", "Relaxation"
   final String location;
-  final String dateTime;
-  final String duration;
-  final String notes;
+  final String dateTime; // Stored as String (you might consider DateTime later)
+  final String duration; // Can be "2h", "All Day", etc.
+  final String notes; // Optional extra details, reminders, etc.
 
   Activity({
     this.id,
@@ -21,11 +22,12 @@ class Activity {
     required this.notes,
   });
 
+  // Factory to create an Activity from a Map (e.g. from Firebase or SQLite)
   factory Activity.fromMap(Map<String, dynamic> map, {String? id}) {
     return Activity(
       id: id,
       itineraryFirestoreId: map['itineraryFirestoreId'],
-      name: map['name'] ?? '',
+      name: map['name'] ?? '', // Use empty strings as fallback to avoid nulls
       type: map['type'] ?? '',
       location: map['location'] ?? '',
       dateTime: map['dateTime'] ?? '',
@@ -34,6 +36,7 @@ class Activity {
     );
   }
 
+  // Converts the Activity object into a Map to store in a database
   Map<String, dynamic> toMap() {
     final map = {
       'itineraryFirestoreId': itineraryFirestoreId,
@@ -44,7 +47,9 @@ class Activity {
       'duration': duration,
       'notes': notes,
     };
-    debugPrint("🎯 Activity toMap: $map");
+
+    debugPrint(
+        "Activity toMap: $map"); // Handy for logging activity saves/updates
     return map;
   }
 }

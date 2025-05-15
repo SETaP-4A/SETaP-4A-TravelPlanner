@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:setap4a/models/flight.dart';
 import 'package:setap4a/db/database_helper.dart';
-import 'package:setap4a/models/itinerary.dart';
 import 'package:setap4a/widgets/date_time_field.dart';
 
 class EditFlightPage extends StatefulWidget {
@@ -77,8 +76,6 @@ class _EditFlightPageState extends State<EditFlightPage> {
       itineraryFirestoreId: widget.flight.itineraryFirestoreId,
     );
 
-    final uid = widget.ownerUid;
-
     try {
       if (kIsWeb) {
         await FirebaseFirestore.instance
@@ -93,26 +90,15 @@ class _EditFlightPageState extends State<EditFlightPage> {
         // ✅ Sync Firestore even for Android
         await FirebaseFirestore.instance
             .collection('users')
-            .doc(widget.ownerUid) // 👈 VERY IMPORTANT
+            .doc(widget.ownerUid)
             .collection('itineraries')
             .doc(updatedFlight.itineraryFirestoreId)
             .collection('flights')
             .doc(widget.docId)
             .set(updatedFlight.toMap());
 
-        // Optionally update SQLite if you're syncing locally
         await DatabaseHelper.instance.insertFlight(updatedFlight);
       }
-
-      final itineraryDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.ownerUid)
-          .collection('itineraries')
-          .doc(updatedFlight.itineraryFirestoreId)
-          .get();
-
-      final itinerary =
-          Itinerary.fromMap(itineraryDoc.data()!, firestoreId: itineraryDoc.id);
 
       Navigator.pop(context, 'updated');
     } catch (e) {

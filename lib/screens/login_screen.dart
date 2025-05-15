@@ -17,6 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final passwordController = TextEditingController();
   final AuthService authService = AuthService();
 
+  // Background gradient for the login screen
   final _darkGradient = const BoxDecoration(
     gradient: LinearGradient(
       begin: Alignment.topCenter,
@@ -29,6 +30,7 @@ class _LoginScreenState extends State<LoginScreen> {
     ),
   );
 
+  // Styled card that wraps the login form
   Widget _authCard({required Widget child}) => Card(
         elevation: 8,
         margin: const EdgeInsets.symmetric(horizontal: 24),
@@ -41,11 +43,13 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
 
+  // Button style used across login options
   ButtonStyle get btnStyle => ElevatedButton.styleFrom(
         minimumSize: const Size.fromHeight(48),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       );
 
+  // Email/password login
   Future<void> login() async {
     try {
       final user = await authService.signInWithEmailPassword(
@@ -53,6 +57,7 @@ class _LoginScreenState extends State<LoginScreen> {
         passwordController.text.trim(),
       );
 
+      // Navigate to Home if login is successful
       if (user != null) {
         // ignore: use_build_context_synchronously
         Navigator.pushReplacement(
@@ -69,6 +74,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  // Google login with username check
   Future<void> loginWithGoogle() async {
     try {
       final result = await authService.signInWithGoogleAndCheckUsername();
@@ -76,6 +82,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final hasUsername = result['hasUsername'] == true;
 
+      // Direct user to SetUsernamePage if they don't have one
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -89,9 +96,11 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  // Navigate to register screen
   void goToRegister() => Navigator.push(
       context, MaterialPageRoute(builder: (_) => RegisterScreen()));
 
+  // Show a snackbar with a given message
   void _showSnackBar(String msg) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
 
@@ -118,6 +127,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           .copyWith(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 24),
+
+                    // Email input
                     TextFormField(
                       controller: emailController,
                       keyboardType: TextInputType.emailAddress,
@@ -127,6 +138,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
+
+                    // Password input
                     TextFormField(
                       controller: passwordController,
                       obscureText: true,
@@ -136,12 +149,16 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 32),
+
+                    // Email/password login button
                     ElevatedButton(
                       style: btnStyle,
                       onPressed: login,
                       child: const Text('Login'),
                     ),
                     const SizedBox(height: 12),
+
+                    // Google login button
                     ElevatedButton.icon(
                       style: btnStyle,
                       onPressed: loginWithGoogle,
@@ -149,6 +166,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       label: const Text('Continue with Google'),
                     ),
                     const SizedBox(height: 24),
+
+                    // Link to register screen
                     TextButton(
                       onPressed: goToRegister,
                       child: const Text("Don't have an account? Register"),
@@ -163,6 +182,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  // Clean up text controllers to avoid memory leaks
   @override
   void dispose() {
     emailController.dispose();

@@ -1,16 +1,16 @@
 class Itinerary {
-  int? id;
-  String? firestoreId;
+  int? id; // Local DB ID (used in SQLite)
+  String? firestoreId; // Firestore document ID
   String? title;
-  String? startDate;
+  String? startDate; // Stored as a formatted string
   String? endDate;
   String? location;
-  String? description;
-  String? comments;
-  int? userId; // local DB id
-  String? ownerUid; // Firebase UID
-  List<String>? collaborators;
-  final String? permission; // 'viewer' or 'editor'
+  String? description; // Optional trip description
+  String? comments; // Notes, group chat stuff, etc.
+  int? userId; // Local DB link to user (SQLite user.id)
+  String? ownerUid; // Firebase UID of the trip owner
+  List<String>? collaborators; // List of user UIDs who are invited
+  final String? permission; // 'viewer' or 'editor' (for current user context)
 
   Itinerary({
     this.id,
@@ -27,6 +27,7 @@ class Itinerary {
     this.permission,
   });
 
+  // Convert Itinerary to a map for saving to DB or Firestore
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -44,10 +45,11 @@ class Itinerary {
     };
   }
 
+  // Construct Itinerary from map (e.g. after loading from DB or Firebase)
   factory Itinerary.fromMap(Map<String, dynamic> map, {String? firestoreId}) {
     return Itinerary(
       id: map['id'],
-      firestoreId: firestoreId,
+      firestoreId: firestoreId, // Firestore ID might be passed separately
       title: map['title'],
       startDate: map['startDate'],
       endDate: map['endDate'],
@@ -57,12 +59,13 @@ class Itinerary {
       userId: map['userId'],
       ownerUid: map['ownerUid'],
       collaborators: map['collaborators'] != null
-          ? List<String>.from(map['collaborators'])
+          ? List<String>.from(map['collaborators']) // Defensive copy
           : [],
       permission: map['permission'],
     );
   }
 
+  // Utility method to clone this object while changing some fields
   Itinerary copyWith({
     int? id,
     String? firestoreId,

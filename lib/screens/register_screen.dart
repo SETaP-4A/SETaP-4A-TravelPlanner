@@ -19,8 +19,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final passwordController = TextEditingController();
   final AuthService authService = AuthService();
 
-  String? errorMessage;
+  String? errorMessage; // To display user-facing validation or Firebase errors
 
+  // Dark background gradient for consistent theming
   final _darkGradient = const BoxDecoration(
     gradient: LinearGradient(
       begin: Alignment.topCenter,
@@ -33,6 +34,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     ),
   );
 
+  // Wrapper for consistent card styling
   Widget _authCard({required Widget child}) => Card(
         elevation: 8,
         margin: const EdgeInsets.symmetric(horizontal: 24),
@@ -45,11 +47,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
       );
 
+  // Reusable button styling
   ButtonStyle get btnStyle => ElevatedButton.styleFrom(
         minimumSize: const Size.fromHeight(48),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       );
 
+  // Input validation for username, email, and password
   bool _isValidInput(String username, String email, String password) {
     final usernameValid = RegExp(r'^[a-zA-Z0-9_]{3,}$').hasMatch(username);
     final emailValid = RegExp(r'^[\w\.-]+@[\w\.-]+\.\w+$').hasMatch(email);
@@ -75,18 +79,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return true;
   }
 
+  // Register user with email and password
   Future<void> register() async {
     final username = usernameController.text.trim().toLowerCase();
     final email = emailController.text.trim();
     final password = passwordController.text.trim();
 
     if (!_isValidInput(username, email, password)) {
-      setState(() {}); // refreshes errorMessage
+      setState(() {}); // Trigger rebuild to show validation error
       return;
     }
 
     try {
-      // Check if username is already taken
+      // Check Firestore for existing username
       final existing =
           await FirebaseFirestore.instance.doc('usernames/$username').get();
 
@@ -95,6 +100,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return;
       }
 
+      // Attempt to register using AuthService
       final user = await authService.signUpWithEmailPassword(
         email,
         password,
@@ -106,7 +112,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (user != null && currentUser != null) {
         final originalUsername = usernameController.text.trim();
 
-        // Save user document
+        // Save user profile data to Firestore
         await FirebaseFirestore.instance
             .collection('users')
             .doc(currentUser.uid)
@@ -121,12 +127,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
           'outgoingRequests': [],
         });
 
-        // Map username → uid
+        // Add entry to usernames lookup
         await FirebaseFirestore.instance
             .collection('usernames')
             .doc(originalUsername.toLowerCase())
             .set({'uid': currentUser.uid});
 
+        // Navigate to the Home screen
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -135,6 +142,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
       }
     } on firebase_auth.FirebaseAuthException catch (e) {
+      // Handle Firebase-specific errors
       setState(() {
         if (e.code == 'email-already-in-use') {
           errorMessage = 'This email is already registered.';
@@ -151,6 +159,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  // Google sign-up flow
   Future<void> registerWithGoogle() async {
     try {
       final result = await authService.signInWithGoogleAndCheckUsername();
@@ -158,6 +167,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       final hasUsername = result['hasUsername'] == true;
 
+      // If user doesn’t have a username yet, redirect them to SetUsernamePage
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -196,6 +206,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           .copyWith(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 24),
+
+                    // Show error message if validation or Firebase error occurs
                     if (errorMessage != null) ...[
                       Text(
                         errorMessage!,
@@ -204,6 +216,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       const SizedBox(height: 16),
                     ],
+
+                    // Username input
                     TextFormField(
                       controller: usernameController,
                       decoration: const InputDecoration(
@@ -212,6 +226,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
+
+                    // Email input
                     TextFormField(
                       controller: emailController,
                       keyboardType: TextInputType.emailAddress,
@@ -221,6 +237,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
+
+                    // Password input
                     TextFormField(
                       controller: passwordController,
                       obscureText: true,
@@ -230,12 +248,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ),
                     const SizedBox(height: 32),
+
+                    // Register button
                     ElevatedButton(
                       style: btnStyle,
                       onPressed: register,
                       child: const Text('Register'),
                     ),
                     const SizedBox(height: 12),
+
+                    // Google register button
                     ElevatedButton.icon(
                       style: btnStyle,
                       onPressed: registerWithGoogle,
@@ -252,6 +274,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
+  // Clean up controllers when screen is disposed
   @override
   void dispose() {
     usernameController.dispose();

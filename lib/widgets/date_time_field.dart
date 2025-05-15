@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+/// A reusable form field widget that allows picking both date and time.
+/// Shows a combined date & time picker on tap and formats the result for display.
 class DateTimeField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
@@ -13,6 +15,8 @@ class DateTimeField extends StatelessWidget {
     this.isRequired = false,
   });
 
+  /// Opens date picker followed by time picker,
+  /// then formats and sets the combined datetime string to the controller.
   Future<void> _pickDateTime(BuildContext context) async {
     final date = await showDatePicker(
       context: context,
@@ -36,7 +40,10 @@ class DateTimeField extends StatelessWidget {
       time.minute,
     );
 
+    // Get the locale from context for localized formatting
     final locale = Localizations.localeOf(context).toString();
+
+    // Format date and time (e.g. May 15, 2025 14:30)
     controller.text = DateFormat.yMMMMd(locale).add_Hm().format(dateTime);
   }
 
@@ -48,9 +55,10 @@ class DateTimeField extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 12.0),
       child: TextFormField(
         controller: controller,
-        readOnly: true,
+        readOnly: true, // Prevents keyboard from opening
         onTap: () => _pickDateTime(context),
         validator: (value) {
+          // Validate required field
           if (isRequired && (value == null || value.trim().isEmpty)) {
             return 'Please enter $label';
           }

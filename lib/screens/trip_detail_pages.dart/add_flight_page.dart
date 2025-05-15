@@ -47,7 +47,7 @@ class _AddFlightPageState extends State<AddFlightPage> {
       return;
     }
 
-    // ✅ Validate that departure is before arrival
+    // Validates that departure is before arrival
     final departure =
         DateTime.tryParse(_departureDateTimeController.text.trim());
     final arrival = DateTime.tryParse(_arrivalDateTimeController.text.trim());

@@ -124,14 +124,6 @@ class _TripsPageState extends State<TripsPage> {
     });
   }
 
-  String _getPermissionForTrip(String tripId) {
-    final invite = incomingInvites.firstWhere(
-      (i) => i['tripId'] == tripId && i['status'] == 'accepted',
-      orElse: () => {},
-    );
-    return invite['permission'] ?? 'viewer';
-  }
-
   Future<Map<String, List<String>>> _getCollaboratorNames(
       List<Itinerary> ownerTrips) async {
     final firestore = FirebaseFirestore.instance;
@@ -442,6 +434,10 @@ class _TripsPageState extends State<TripsPage> {
               context,
               MaterialPageRoute(builder: (context) => const AddTripPage()),
             );
+
+            if (result == true) {
+              _listenToTrips();
+            }
           },
           icon: const Icon(Icons.add),
           label: const Text('Add Trip'),

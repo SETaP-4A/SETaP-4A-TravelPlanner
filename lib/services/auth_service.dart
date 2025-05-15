@@ -30,11 +30,11 @@ class AuthService {
 
     final user = userCredential.user;
     if (user != null) {
-      // ✅ Store current UID
+      // Store current UID
       final prefs = await SharedPreferences.getInstance();
       prefs.setString('active_uid', user.uid);
 
-      // ✅ Optionally sync to SQLite
+      // Optionally sync to SQLite
       if (!kIsWeb) {
         await _userProfileService.syncUserProfileToSQLite(local_model.User(
           uid: user.uid,
@@ -62,11 +62,11 @@ class AuthService {
       final user = userCredential.user;
 
       if (user != null) {
-        // ✅ Store UID
+        // Store UID
         final prefs = await SharedPreferences.getInstance();
         prefs.setString('active_uid', user.uid);
 
-        // ✅ Also sync user to SQLite
+        // Also sync user to SQLite
         if (!kIsWeb) {
           await _userProfileService.syncUserProfileToSQLite(
             local_model.User(

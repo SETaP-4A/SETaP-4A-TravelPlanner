@@ -21,6 +21,7 @@ class EditTripPage extends StatefulWidget {
 class EditTripPageState extends State<EditTripPage> {
   final _formKey = GlobalKey<FormState>();
 
+  // Controllers for form fields
   late TextEditingController _titleController;
   late TextEditingController _startDateController;
   late TextEditingController _endDateController;
@@ -31,6 +32,8 @@ class EditTripPageState extends State<EditTripPage> {
   @override
   void initState() {
     super.initState();
+
+    // Pre-fill form fields using existing trip data
     _titleController = TextEditingController(text: widget.trip.title ?? '');
     _startDateController =
         TextEditingController(text: widget.trip.startDate ?? '');
@@ -43,6 +46,7 @@ class EditTripPageState extends State<EditTripPage> {
         TextEditingController(text: widget.trip.comments ?? '');
   }
 
+  // Opens a calendar to let the user pick a date
   Future<void> _pickDate(TextEditingController controller) async {
     DateTime initialDate;
     try {
@@ -63,11 +67,13 @@ class EditTripPageState extends State<EditTripPage> {
     }
   }
 
+  // Handles validation and saving of trip changes
   void _saveTrip() async {
     final dateFormat = DateFormat('MMMM dd, yyyy');
     final start = dateFormat.parse(_startDateController.text.trim());
     final end = dateFormat.parse(_endDateController.text.trim());
 
+    // Validate that start date is before end date
     if (start.isAfter(end)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Start date must be before end date')),
@@ -100,6 +106,7 @@ class EditTripPageState extends State<EditTripPage> {
 
         final firestore = FirebaseFirestore.instance;
 
+        // Update in Firestore if trip is already stored remotely
         if (widget.trip.firestoreId != null && widget.trip.ownerUid != null) {
           await firestore
               .collection('users')
@@ -109,14 +116,16 @@ class EditTripPageState extends State<EditTripPage> {
               .update(updatedTrip.toMap());
         }
 
+        // Also update in local database if on mobile and user is the trip owner
         if (!kIsWeb &&
             FirebaseAuth.instance.currentUser?.uid == widget.trip.ownerUid) {
           await DatabaseHelper.instance.updateItinerary(updatedTrip);
         }
 
-        Navigator.pop(context, true);
+        Navigator.pop(
+            context, true); // Notify previous screen of successful update
       } catch (e) {
-        print('❌ Failed to update trip: $e');
+        print('Failed to update trip: $e');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to update trip')),
         );
@@ -170,6 +179,8 @@ class EditTripPageState extends State<EditTripPage> {
                   ),
                   child: const Text('Save Changes'),
                 ),
+
+                // Section for quickly adding new trip elements
                 const SizedBox(height: 40),
                 Text("Add Items",
                     style: Theme.of(context).textTheme.titleMedium),
@@ -184,11 +195,11 @@ class EditTripPageState extends State<EditTripPage> {
                           final result = await Navigator.push(
                             context,
                             MaterialPageRoute(
-                                builder: (context) => AddAccommodationPage(
-                                      itineraryFirestoreId:
-                                          widget.trip.firestoreId!,
-                                      ownerUid: widget.trip.ownerUid!,
-                                    )),
+                              builder: (context) => AddAccommodationPage(
+                                itineraryFirestoreId: widget.trip.firestoreId!,
+                                ownerUid: widget.trip.ownerUid!,
+                              ),
+                            ),
                           );
                           if (result == 'refresh') setState(() {});
                         },
@@ -197,20 +208,21 @@ class EditTripPageState extends State<EditTripPage> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton.icon(
-                          icon: const Icon(Icons.directions_walk),
-                          label: const Text('Activity'),
-                          onPressed: () async {
-                            final result = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => AddActivityPage(
-                                  itineraryFirestoreId:
-                                      widget.trip.firestoreId!,
-                                  ownerUid: widget.trip.ownerUid!,
-                                ),
+                        icon: const Icon(Icons.directions_walk),
+                        label: const Text('Activity'),
+                        onPressed: () async {
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => AddActivityPage(
+                                itineraryFirestoreId: widget.trip.firestoreId!,
+                                ownerUid: widget.trip.ownerUid!,
                               ),
-                            );
-                          }),
+                            ),
+                          );
+                          if (result == 'refresh') setState(() {});
+                        },
+                      ),
                     ),
                   ],
                 ),
@@ -243,6 +255,7 @@ class EditTripPageState extends State<EditTripPage> {
     );
   }
 
+  // Reusable text input field with validation
   Widget _buildTextField(String label, TextEditingController controller,
       {bool isRequired = false}) {
     final themeColor = Theme.of(context).textTheme.bodySmall?.color;
@@ -285,6 +298,7 @@ class EditTripPageState extends State<EditTripPage> {
     );
   }
 
+  // Reusable date field with calendar picker and read-only input
   Widget _buildDateField(String label, TextEditingController controller,
       {bool isRequired = false}) {
     final themeColor = Theme.of(context).textTheme.bodySmall?.color;

@@ -20,7 +20,6 @@ class TripCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isOwner = trip.ownerUid == FirebaseAuth.instance.currentUser?.uid;
     final isEditor = trip.permission == 'editor';
-
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8.0),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -44,12 +43,15 @@ class TripCard extends StatelessWidget {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Display start date with reduced opacity (alpha 204 ~ 80%)
             Text(
               trip.startDate ?? '',
               style: TextStyle(
                 color: Theme.of(context).colorScheme.onSurface.withAlpha(204),
               ),
             ),
+
+            // If user is a collaborator (not owner), show collaborator role
             if (!isOwner)
               Padding(
                 padding: const EdgeInsets.only(top: 4.0),
@@ -72,18 +74,21 @@ class TripCard extends StatelessWidget {
                   ),
                 ),
               ),
+
+            // If owner, display list of collaborators
             if (isOwner &&
                 collaboratorNames != null &&
                 collaboratorNames!.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 4.0),
                 child: Text(
-                  "👥 Shared with: ${collaboratorNames!.join(', ')}",
+                  "Shared with: ${collaboratorNames!.join(', ')}",
                   style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ),
           ],
         ),
+        // Show delete button only to owner
         trailing: isOwner
             ? IconButton(
                 icon: const Icon(Icons.delete, color: Colors.redAccent),

@@ -10,21 +10,24 @@ class AccountPage extends StatefulWidget {
 }
 
 class AccountPageState extends State<AccountPage> {
-  final user = AuthService().getCurrentUser();
-  String? username;
-  bool isLoading = true;
+  final user = AuthService().getCurrentUser(); // Currently authenticated user
+  String? username; // Stores the user's username
+  bool isLoading = true; // Controls loading state
 
   @override
   void initState() {
     super.initState();
-    _fetchUsernameFromUID();
+    _fetchUsernameFromUID(); // Load username when page initializes
   }
 
+  // Retrieves username from Firestore based on current user's UID
   Future<void> _fetchUsernameFromUID() async {
     if (user == null) return;
 
+    // The usernames collection uses usernames as doc IDs and maps them to UIDs
     final snapshot =
         await FirebaseFirestore.instance.collection('usernames').get();
+
     for (final doc in snapshot.docs) {
       if (doc.data()['uid'] == user!.uid) {
         setState(() {
@@ -35,7 +38,7 @@ class AccountPageState extends State<AccountPage> {
       }
     }
 
-    // Fallback if UID not found in usernames
+    // Fallback if no username found for current UID
     setState(() {
       username = 'No username';
       isLoading = false;
@@ -44,18 +47,25 @@ class AccountPageState extends State<AccountPage> {
 
   @override
   Widget build(BuildContext context) {
+    // If the user is not logged in
     if (user == null) {
-      return const Scaffold(body: Center(child: Text('Not logged in')));
+      return const Scaffold(
+        body: Center(child: Text('Not logged in')),
+      );
     }
 
+    // Show a loading spinner while fetching username
     if (isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
     }
 
+    // Show user profile once username and data are loaded
     return Scaffold(
       appBar: AppBar(
         title: Text(username ?? 'Unknown User'),
-        automaticallyImplyLeading: false,
+        automaticallyImplyLeading: false, // Hides default back button
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -68,16 +78,23 @@ class AccountPageState extends State<AccountPage> {
               child: Icon(Icons.person, size: 50, color: Colors.white),
             ),
             const SizedBox(height: 16),
+
+            // Display the username (or fallback if missing)
             Text(
               username ?? 'No username',
               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
+
             const SizedBox(height: 8),
+
+            // Show user’s email (Firebase Auth email)
             Text(
               user!.email ?? 'No email',
               style: const TextStyle(fontSize: 18, color: Colors.grey),
               textAlign: TextAlign.center,
             ),
+
+            // Spacer that could be used to separate content visually
             Align(
               alignment: Alignment.center,
               child: SizedBox(

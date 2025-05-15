@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:setap4a/db/database_helper.dart';
 import 'package:setap4a/models/accommodation.dart';
-import 'package:setap4a/models/itinerary.dart';
 import 'package:setap4a/widgets/date_picker_field.dart';
 
 class EditAccommodationPage extends StatefulWidget {
@@ -78,10 +77,6 @@ class _EditAccommodationPageState extends State<EditAccommodationPage> {
     try {
       final uid = widget.ownerUid;
 
-      if (uid == null) throw Exception("No user signed in");
-
-      debugPrint("🏨 Updated accommodation map: ${updated.toMap()}");
-
       await FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
@@ -93,19 +88,9 @@ class _EditAccommodationPageState extends State<EditAccommodationPage> {
 
       await DatabaseHelper.instance.insertAccommodation(updated);
 
-      final tripDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .collection('itineraries')
-          .doc(updated.itineraryFirestoreId)
-          .get();
-
-      final itinerary =
-          Itinerary.fromMap(tripDoc.data()!, firestoreId: tripDoc.id);
-
       Navigator.pop(context, 'updated');
     } catch (e) {
-      debugPrint("❌ Failed to update accommodation: $e");
+      debugPrint("Failed to update accommodation: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Failed to update accommodation: $e")),
       );

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+/// A reusable form field that opens a date picker when tapped
+/// and displays the selected date in yyyy-MM-dd format.
 class DatePickerField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
@@ -13,6 +15,7 @@ class DatePickerField extends StatelessWidget {
     this.isRequired = false,
   });
 
+  /// Opens the date picker and sets the selected date in the text field.
   Future<void> _pickDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -34,7 +37,7 @@ class DatePickerField extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 12.0),
       child: TextFormField(
         controller: controller,
-        readOnly: true,
+        readOnly: true, // prevents keyboard from showing
         onTap: () => _pickDate(context),
         validator: (value) =>
             isRequired && (value == null || value.trim().isEmpty)

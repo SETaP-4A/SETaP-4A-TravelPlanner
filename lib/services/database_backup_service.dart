@@ -1,13 +1,10 @@
 import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
 import 'package:path/path.dart';
 
 class DatabaseBackupService {
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
-
   // Get the current database file path from the DatabaseHelper
   Future<String> _getDatabasePath() async {
     final path = await getDatabasesPath();
@@ -21,7 +18,9 @@ class DatabaseBackupService {
       final backupFile = await _createBackupFile(dbPath);
 
       // Upload the backup file to Firebase Storage
-      final storageRef = FirebaseStorage.instance.ref().child('backups/secure_database_backup.db');
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('backups/secure_database_backup.db');
       await storageRef.putFile(backupFile);
       print("Backup uploaded to Firebase Storage successfully");
     } catch (e) {
@@ -51,7 +50,7 @@ class DatabaseBackupService {
     try {
       final dbPath = await _getDatabasePath();
       final backupFile = await _getBackupFileFromFirebase();
-      
+
       if (backupFile != null) {
         // Copy the backup file to the database path
         await backupFile.copy(dbPath);
@@ -67,7 +66,9 @@ class DatabaseBackupService {
   // Retrieve the backup file from Firebase Storage
   Future<File?> _getBackupFileFromFirebase() async {
     try {
-      final storageRef = FirebaseStorage.instance.ref().child('backups/secure_database_backup.db');
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('backups/secure_database_backup.db');
       final tempDir = await getTemporaryDirectory();
       final tempFilePath = join(tempDir.path, 'secure_database_backup.db');
       final tempFile = File(tempFilePath);
