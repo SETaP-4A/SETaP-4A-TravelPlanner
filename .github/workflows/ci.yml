@@ -12,6 +12,10 @@ jobs:
      name: "Build and Test"
      runs-on: ubuntu-latest
      timeout-minutes: 60
+     env:
+      ANDROID_SDK_ROOT: $HOME/android-sdk
+      PATH: $HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/emulator:$HOME/android-sdk/platform-tools:$PATH
+
      steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -31,34 +35,28 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Download Android cmdline-tools  (needed to be installed before SDK license acceptance)
+      - name: Install Android cmdline-tools  (needed to be installed before SDK license acceptance)
         run: |
-          mkdir -p $HOME/android-sdk/cmdline-tools
-          cd $HOME/android-sdk/cmdline-tools
-          curl -o commandlinetools.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-          unzip commandlinetools.zip
+          mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
+          cd $ANDROID_SDK_ROOT/cmdline-tools
+          curl -o cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          unzip -q cmdline-tools.zip
           mkdir latest
           mv cmdline-tools/* latest/
-          
-      - name: Accept Android SDK licenses
-        env:
-          ANDROID_SDK_ROOT: $HOME/android-sdk
-          PATH: $HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/emulator:$HOME/android-sdk/platform-tools:$PATH
+
+      - name: Accept SDK Licenses
         run: |
           yes | sdkmanager --licenses
-          
+
       - name: Install Android SDK components
-        env:
-          ANDROID_SDK_ROOT: $HOME/android-sdk
-          PATH: $HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/emulator:$HOME/android-sdk/platform-tools:$PATH
-        run: | 
-          sdkmanager --install "platforms;android-34" "system-images;android-34;google_apis;x86_64" "emulator"
+        run: |
+          sdkmanager \
+            "platforms;android-34" \
+            "system-images;android-34;google_apis;x86_64" \
+            "emulator"
 
          
       - name: Create Android emulator (Pixel 7) - Added path avdmanager
-        env:
-          ANDROID_SDK_ROOT: $HOME/android-sdk
-          PATH: $HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/emulator:$HOME/android-sdk/platform-tools:$PATH
         run: |
           echo "no" | avdmanager create avd -n pixel_7 -k "system-images;android-34;google_apis;x86_64" -d "pixel_7"
 
