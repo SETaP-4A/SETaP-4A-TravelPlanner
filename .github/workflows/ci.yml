@@ -31,9 +31,17 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
+      - name: Set up Android SDK environment
+        run: |
+          echo "ANDROID_SDK_ROOT=$HOME/Library/Android/sdk" >> $GITHUB_ENV
+          echo "PATH=$HOME/Library/Android/sdk/cmdline-tools/latest/bin:$HOME/Library/Android/sdk/emulator:$HOME/Library/Android/sdk/platform-tools:$PATH" >> $GITHUB_ENV
+
       - name: Install Android SDK components
         run: |
-          echo "y" | sdkmanager "platforms;android-34" "system-images;android-34;google_apis;x86_64" "emulator"
+          sdkmanager --sdk_root=${ANDROID_SDK_ROOT} \
+            "platforms;android-34" \
+            "system-images;android-34;google_apis;x86_64" \
+            "emulator"
 
       - name: Create Android emulator (Pixel 7)
         run: |
