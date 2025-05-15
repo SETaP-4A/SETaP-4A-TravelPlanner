@@ -57,11 +57,12 @@ jobs:
           Xvfb :0 &
           export DISPLAY=:0
 
-      - name: Start Android Emulator
+      - name: Start Android Emulator (logging enabled)
         run: |
           export DISPLAY=:0
-          nohup emulator -avd test_emulator -no-audio -no-window -gpu swiftshader_indirect -no-snapshot-save -no-accel > /dev/null 2>&1 &
-          sleep 30
+          emulator -avd test_emulator -no-audio -no-window -gpu swiftshader_indirect -no-snapshot-save -no-accel &
+          sleep 60
+
 
       - name: Wait for emulator to boot
         run: |
