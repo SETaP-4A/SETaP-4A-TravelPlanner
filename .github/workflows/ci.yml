@@ -1,4 +1,6 @@
 on:
+  schedule:
+    - cron: '0 0 * * *' # Runs every day at midnight UTC
   pull_request:
     branches: [main]
   push:
@@ -7,11 +9,18 @@ on:
 name: "Build and Test"
 jobs:
   build:
-    name: "Build"
-    runs-on: windows-latest
-    steps:
+     name: "Build and Test"
+     runs-on: macos-latest
+     timeout-minutes: 60
+     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -22,5 +31,25 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Run tests
+      - name: Install Android SDK components
+        run: |
+          echo "y" | sdkmanager "platforms;android-34" "system-images;android-34;google_apis;x86_64" "emulator"
+
+      - name: Create Android emulator (Pixel 7)
+        run: |
+          echo "no" | avdmanager create avd -n pixel_7 -k "system-images;android-34;google_apis;x86_64" -d "pixel_7"
+
+      - name: Launch emulator
+        run: |
+          nohup emulator -avd pixel_7 -no-audio -no-window -gpu swiftshader_indirect &
+          adb wait-for-device
+          adb shell settings put global window_animation_scale 0
+          adb shell settings put global transition_animation_scale 0
+          adb shell settings put global animator_duration_scale 0
+        timeout-minutes: 60
+
+      - name: Run unit tests
         run: flutter test
+
+      - name: Run integration tests
+        run: flutter test integration_test/
