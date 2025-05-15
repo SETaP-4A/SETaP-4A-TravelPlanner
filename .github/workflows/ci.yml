@@ -34,14 +34,15 @@ jobs:
         with:
           cmdline-tools-version: 9477386
           accept-android-sdk-licenses: true
+          log-accepted-android-sdk-licenses: false
           packages: |
-            platform-tools
-            platforms;android-33
-            build-tools;33.0.0
-            emulator
-            system-images;android-33;google_apis;x86_64
-            ndk;25.1.8937393
-            cmake;3.22.1
+            'platform-tools'
+            'platforms;android-34'
+            'build-tools;34.0.0'
+            'emulator'
+            'system-images;android-34;google_apis;x86_64'
+            'ndk;25.1.8937393'
+            'cmake;3.22.1'
 
       - name: Accept Android SDK licenses
         run: yes | sdkmanager --licenses
