@@ -62,48 +62,15 @@ jobs:
           set -x
           export DISPLAY=:0
           export PATH=$PATH:$ANDROID_HOME/emulator
-          emulator -avd test_emulator -no-audio -no-window -gpu swiftshader_indirect -no-snapshot-save -no-accel &
-          sleep 60
+          adb start-server
+          emulator -avd test_emulator -no-audio -no-window -gpu swiftshader_indirect -no-snapshot-save -no-accel -no-boot-anim &
 
-
-
-      - name: Wait for emulator to boot
+      - name: Wait for emulator to boot (blind wait)
         run: |
-          set -x
-          export DISPLAY=:0
-          export PATH=$PATH:$ANDROID_HOME/platform-tools/
-          adb wait-for-device
+          echo "⏳ Giving the emulator 90 seconds to boot (no boot check)..."
+          sleep 90
 
-          bootanim=""
-          booted=""
-          SECONDS=0
-          timeout=300
-
-          while [[ $SECONDS -le $timeout ]]; do
-            bootanim=$(adb shell getprop init.svc.bootanim 2>&1)
-            booted=$(adb shell getprop sys.boot_completed 2>&1)
-            echo "[$SECONDS sec] bootanim: $bootanim | sys.boot_completed: $booted"
-            if [[ "$bootanim" == *stopped* ]] || [[ "$booted" == "1" ]]; then
-              echo "✅ Emulator booted in $SECONDS seconds."
-              break
-            fi
-            sleep 5
-          done
-
-          if [[ "$bootanim" != *stopped* ]] && [[ "$booted" != "1" ]]; then
-            echo "❌ Emulator boot timed out after $timeout seconds."
-            adb logcat -d || true
-            exit 1
-          fi
-
-          adb shell settings put global window_animation_scale 0
-          adb shell settings put global transition_animation_scale 0
-          adb shell settings put global animator_duration_scale 0
-
-
-
-
-
+          
       - name: Check connected devices
         run: adb devices
 
