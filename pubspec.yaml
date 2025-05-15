@@ -11,7 +11,8 @@ dependencies:
   sqflite_sqlcipher: ^2.1.0
   flutter_secure_storage: ^8.0.0
   intl: ^0.18.0
-  sqflite: 2.4.1
+  sqflite: 2.2.8+4
+
   sqflite_common_ffi: ^2.0.0
 
   path: ^1.8.3
