@@ -44,11 +44,11 @@ jobs:
             platforms;android-30
             build-tools;30.0.3
             emulator
-            system-images;android-30;default;x86
+            system-images;android-30;google_apis;x86
 
       - name: Create Android Emulator
         run: |
-          echo "no" | avdmanager create avd -n test_emulator -k "system-images;android-30;default;x86" -d pixel
+          echo "no" | avdmanager create avd -n test_emulator -k "system-images;android-30;google_apis;x86" -d pixel
 
       - name: Start X virtual framebuffer (Xvfb)
         run: |
@@ -61,7 +61,7 @@ jobs:
         run: |
           export DISPLAY=:0
           nohup emulator -avd test_emulator -no-audio -no-window -gpu swiftshader_indirect -no-snapshot-save -no-accel > /dev/null 2>&1 &
-          sleep 60
+          sleep 30
 
       - name: Wait for emulator to boot
         run: |
@@ -69,23 +69,34 @@ jobs:
           export PATH=$PATH:$ANDROID_HOME/platform-tools/
           adb wait-for-device
           bootanim=""
+          booted=""
           SECONDS=0
           timeout=300
-          until [[ "$bootanim" == *stopped* || $SECONDS -gt $timeout ]]; do
+
+          while [[ $SECONDS -le $timeout ]]; do
             bootanim=$(adb shell getprop init.svc.bootanim 2>&1)
             booted=$(adb shell getprop sys.boot_completed 2>&1)
             echo "[$SECONDS sec] bootanim: $bootanim | sys.boot_completed: $booted"
+
+            if [[ "$bootanim" == *stopped* ]] || [[ "$booted" == "1" ]]; then
+              echo "✅ Emulator booted in $SECONDS seconds."
+              break
+            fi
             sleep 5
           done
-          if [[ "$bootanim" != *stopped* ]]; then
+
+          if [[ "$bootanim" != *stopped* ]] && [[ "$booted" != "1" ]]; then
             echo "❌ Emulator boot timed out after $timeout seconds."
             adb logcat -d || true
             exit 1
           fi
-          echo "✅ Emulator booted in $SECONDS seconds."
+
+          # Speed up test performance by disabling animations
           adb shell settings put global window_animation_scale 0
           adb shell settings put global transition_animation_scale 0
           adb shell settings put global animator_duration_scale 0
+
+
 
       - name: Check connected devices
         run: adb devices
