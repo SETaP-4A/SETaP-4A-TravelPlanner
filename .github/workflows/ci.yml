@@ -65,6 +65,7 @@ jobs:
 
       - name: Wait for emulator to boot
         run: |
+          set -x
           export DISPLAY=:0
           export PATH=$PATH:$ANDROID_HOME/platform-tools/
           adb wait-for-device
@@ -77,13 +78,8 @@ jobs:
             bootanim=$(adb shell getprop init.svc.bootanim 2>&1)
             booted=$(adb shell getprop sys.boot_completed 2>&1)
             echo "[$SECONDS sec] bootanim: $bootanim | sys.boot_completed: $booted"
-
-            if [[ "$bootanim" == *stopped* ]] || [[ "$booted" == "1" ]]; then
-              echo "✅ Emulator booted in $SECONDS seconds."
-              break
-            fi
             sleep 5
-          done
+          done | tee /dev/stderr
 
           if [[ "$bootanim" != *stopped* ]] && [[ "$booted" != "1" ]]; then
             echo "❌ Emulator boot timed out after $timeout seconds."
@@ -91,10 +87,11 @@ jobs:
             exit 1
           fi
 
-          # Speed up test performance by disabling animations
+          echo "✅ Emulator booted in $SECONDS seconds."
           adb shell settings put global window_animation_scale 0
           adb shell settings put global transition_animation_scale 0
           adb shell settings put global animator_duration_scale 0
+
 
 
 
