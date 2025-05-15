@@ -154,5 +154,4 @@ app.*.symbols
 .gclient_previous_sync_commits
 
 # Ignore Firebase APIKEYS - Breach in Security
-lib/firebase_options.dart
 android/gradle.properties
