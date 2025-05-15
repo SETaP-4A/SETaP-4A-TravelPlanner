@@ -153,6 +153,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     // Email/password login button
                     ElevatedButton(
                       style: btnStyle,
+                      // Use the key to find the button in tests
+                      key: const Key('loginButton'),
                       onPressed: login,
                       child: const Text('Login'),
                     ),
