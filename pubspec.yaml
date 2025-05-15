@@ -35,6 +35,8 @@ dev_dependencies:
   mockito: ^5.0.17
   flutter_lints: ^5.0.0
   firebase_auth_mocks: ^0.14.1
+  integration_test:
+    sdk: flutter
 
 flutter:
   uses-material-design: true
