@@ -31,16 +31,16 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Set up Android SDK environment
-        run: |
-          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
-          echo "PATH=$HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/emulator:$HOME/android-sdk/platform-tools:$PATH" >> $GITHUB_ENV
-
       - name: Accept Android SDK licenses
-        run: yes | sdkmanager --licenses
+        run: |
+          export ANDROID_SDK_ROOT=$HOME/android-sdk
+          export PATH=$HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/emulator:$HOME/android-sdk/platform-tools:$PATH
+          yes | sdkmanager --licenses
           
       - name: Install Android SDK components
         run: | 
+          export ANDROID_SDK_ROOT=$HOME/android-sdk
+          export PATH=$HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/emulator:$HOME/android-sdk/platform-tools:$PATH
           sdkmanager --install "cmdline-tools;latest"
           sdkmanager --sdk_root=${ANDROID_SDK_ROOT} \
             "platforms;android-34" \
