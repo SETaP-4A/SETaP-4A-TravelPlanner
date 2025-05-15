@@ -60,7 +60,7 @@ jobs:
       - name: Start Android Emulator
         run: |
           export DISPLAY=:0
-          nohup $(which emulator) -avd test_emulator -no-audio -no-window -gpu swiftshader_indirect -no-snapshot-save -no-accel &
+          nohup emulator -avd test_emulator -no-audio -no-window -gpu swiftshader_indirect -no-snapshot-save -no-accel > /dev/null 2>&1 &
           sleep 30
 
       - name: Wait for emulator to boot
