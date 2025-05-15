@@ -13,7 +13,7 @@ jobs:
     name: Android Emulator CI
     runs-on: ubuntu-latest
     timeout-minutes: 60
-
+      
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -54,14 +54,20 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y xvfb
-          Xvfb :0 & export DISPLAY=:0
+          Xvfb :0 &
+          export DISPLAY=:0
 
       - name: Start Android Emulator
         run: |
-          nohup $ANDROID_HOME/emulator/emulator -avd test_emulator -no-audio -no-window -gpu swiftshader_indirect &
+          export DISPLAY=:0
+          nohup $(which emulator) -avd test_emulator -no-audio -no-window -gpu swiftshader_indirect &
+          sleep 30
+
+
 
       - name: Wait for emulator to boot
         run: |
+          export DISPLAY=:0
           export PATH=$PATH:$ANDROID_HOME/platform-tools/
           adb wait-for-device
           bootanim=""
@@ -73,6 +79,12 @@ jobs:
           adb shell settings put global window_animation_scale 0
           adb shell settings put global transition_animation_scale 0
           adb shell settings put global animator_duration_scale 0
+        
+      - name: Check connected devices
+        run: adb devices
+
+      - name: Print Flutter doctor
+        run: flutter doctor -v
 
       - name: Run unit tests
         run: flutter test
