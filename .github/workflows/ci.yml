@@ -1,15 +1,16 @@
+name: Build and Test
+
 on:
   schedule:
-    - cron: '0 0 * * *' # Runs every day at midnight UTC
+    - cron: '0 0 * * *' # Runs daily at midnight UTC
   pull_request:
     branches: [main]
   push:
     branches: [main]
 
-name: "Build and Test"
 jobs:
   build:
-    name: "Build and Test"
+    name: Android Emulator CI
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
@@ -26,45 +27,49 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.29.0'
+          flutter-version: '3.19.6' # or your current Flutter version
           channel: 'stable'
 
-      - name: Setup Android SDK
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
           cmdline-tools-version: 9477386
           accept-android-sdk-licenses: true
           log-accepted-android-sdk-licenses: false
           packages: |
-            'platform-tools'
-            'platforms;android-34'
-            'build-tools;34.0.0'
-            'emulator'
-            'system-images;android-34;google_apis;x86_64'
-            'ndk;25.1.8937393'
-            'cmake;3.22.1'
+            platform-tools
+            platforms;android-34
+            build-tools;34.0.0
+            emulator
+            system-images;android-34;google_apis;x86_64
 
-      - name: Accept Android SDK licenses
-        run: yes | sdkmanager --licenses
-
-      - name: Install dependencies
-        run: flutter pub get
-      
-      - name: Install SDK components
-        run: sdkmanager "platforms;android-34" "system-images;android-34;google_apis;x86_64" "emulator" "build-tools;34.0.0"
-
-      - name: Create Android emulator (Pixel 7)
+      - name: Create Android Emulator
         run: |
-          echo "no" | avdmanager create avd -n pixel_7 -k "system-images;android-34;google_apis;x86_64" -d "pixel_7"
+          echo "no" | avdmanager create avd -n test_emulator -k "system-images;android-34;google_apis;x86_64" -d pixel
 
-      - name: Start emulator
+      - name: Start X virtual framebuffer (Xvfb)
         run: |
-          nohup /usr/local/lib/android/sdk/emulator/emulator -avd pixel_7 -no-audio -no-window -gpu swiftshader_indirect &
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+          Xvfb :0 & export DISPLAY=:0
+
+      - name: Start Android Emulator
+        run: |
+          nohup $ANDROID_HOME/emulator/emulator -avd test_emulator -no-audio -no-window -gpu swiftshader_indirect &
 
       - name: Wait for emulator to boot
         run: |
-          adb devices
+          export PATH=$PATH:$ANDROID_HOME/platform-tools/
           adb wait-for-device
+          bootanim=""
+          until [[ "$bootanim" == *stopped* ]]; do
+            bootanim=$(adb shell getprop init.svc.bootanim 2>&1)
+            echo "Waiting for emulator to boot..."
+            sleep 5
+          done
           adb shell settings put global window_animation_scale 0
           adb shell settings put global transition_animation_scale 0
           adb shell settings put global animator_duration_scale 0
