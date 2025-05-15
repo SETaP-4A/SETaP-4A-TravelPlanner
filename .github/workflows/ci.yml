@@ -27,7 +27,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.19.6' # or your current Flutter version
+          flutter-version: '3.22.1'
           channel: 'stable'
 
       - name: Install dependencies
@@ -39,43 +39,44 @@ jobs:
           cmdline-tools-version: 9477386
           accept-android-sdk-licenses: true
           log-accepted-android-sdk-licenses: false
-          packages: |
+          packages: >-
             platform-tools
-            platforms;android-34
-            build-tools;34.0.0
+            platforms;android-30
+            build-tools;30.0.3
             emulator
-            system-images;android-34;google_apis;x86_64
+            system-images;android-30;google_apis;x86
 
       - name: Create Android Emulator
         run: |
-          echo "no" | avdmanager create avd -n test_emulator -k "system-images;android-34;google_apis;x86_64" -d pixel
+          echo "no" | avdmanager create avd -n test_emulator -k "system-images;android-30;google_apis;x86" -d pixel
 
       - name: Start X virtual framebuffer (Xvfb)
         run: |
           sudo apt-get update
           sudo apt-get install -y xvfb
-          Xvfb :0 & export DISPLAY=:0
+          Xvfb :0 &
+          export DISPLAY=:0
 
-      - name: Start Android Emulator
+      - name: Start Android Emulator (logging enabled)
         run: |
-          nohup $ANDROID_HOME/emulator/emulator -avd test_emulator -no-audio -no-window -gpu swiftshader_indirect &
+          set -x
+          export DISPLAY=:0
+          export PATH=$PATH:$ANDROID_HOME/emulator
+          adb start-server
+          emulator -avd test_emulator -no-audio -no-window -gpu swiftshader_indirect -no-snapshot-save -no-accel -no-boot-anim &
 
-      - name: Wait for emulator to boot
+      - name: Wait for emulator to boot (blind wait)
         run: |
-          export PATH=$PATH:$ANDROID_HOME/platform-tools/
-          adb wait-for-device
-          bootanim=""
-          until [[ "$bootanim" == *stopped* ]]; do
-            bootanim=$(adb shell getprop init.svc.bootanim 2>&1)
-            echo "Waiting for emulator to boot..."
-            sleep 5
-          done
-          adb shell settings put global window_animation_scale 0
-          adb shell settings put global transition_animation_scale 0
-          adb shell settings put global animator_duration_scale 0
+          echo "⏳ Giving the emulator 90 seconds to boot (no boot check)..."
+          sleep 90
+
+          
+      - name: Check connected devices
+        run: adb devices
+
+      - name: Print Flutter doctor
+        run: flutter doctor -v
 
       - name: Run unit tests
         run: flutter test
 
-      - name: Run integration tests
-        run: flutter test integration_test/

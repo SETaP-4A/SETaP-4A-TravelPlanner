@@ -24,7 +24,7 @@ if (flutterVersionName == null) {
 
 android {
     namespace "com.example.setap4a"
-    compileSdkVersion 34    
+    compileSdkVersion 35  
     ndkVersion flutter.ndkVersion
 
     compileOptions {

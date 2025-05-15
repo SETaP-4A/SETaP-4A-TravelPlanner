@@ -11,7 +11,6 @@ dependencies:
   sqflite_sqlcipher: ^2.1.0
   flutter_secure_storage: ^8.0.0
   intl: ^0.18.0
-  sqflite: 2.4.1
   sqflite_common_ffi: ^2.0.0
 
   path: ^1.8.3
@@ -20,24 +19,26 @@ dependencies:
   google_sign_in: ^6.1.0
   cloud_firestore: ^5.6.0
   firebase_messaging: ^15.2.1
-  test: ^1.25.8
+  test: ^1.25.2
   encrypt: ^5.0.1
   firebase_storage: ^12.3.0
   path_provider: ^2.1.5
 
   image_picker: ^1.0.7
   cupertino_icons: ^1.0.8
-  shared_preferences: ^2.5.3
+  shared_preferences: ^2.3.0
+
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   mockito: ^5.0.17
-  flutter_lints: ^5.0.0
+  flutter_lints: ^3.0.1
   firebase_auth_mocks: ^0.14.1
   integration_test:
     sdk: flutter
-  build_runner: ^2.4.15
+  build_runner: ^2.4.9
+
 
 
 flutter:

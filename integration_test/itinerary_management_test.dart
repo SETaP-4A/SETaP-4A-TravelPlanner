@@ -49,5 +49,6 @@ void main() {
       // Checks to ensure the "Upcoming Trips" section is present
       expect(find.text("Upcoming Trips"), findsOneWidget);
     });
+
   });
 }
