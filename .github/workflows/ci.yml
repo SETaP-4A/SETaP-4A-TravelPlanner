@@ -31,6 +31,14 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
+      - name: Download Android cmdline-tools  (needed to be installed before SDK license acceptance)
+        run: |
+          mkdir -p $HOME/android-sdk/cmdline-tools
+          cd $HOME/android-sdk/cmdline-tools
+          curl -o commandlinetools.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          unzip commandlinetools.zip
+          mv cmdline-tools latest
+
       - name: Accept Android SDK licenses
         run: |
           export ANDROID_SDK_ROOT=$HOME/android-sdk
@@ -41,11 +49,7 @@ jobs:
         run: | 
           export ANDROID_SDK_ROOT=$HOME/android-sdk
           export PATH=$HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/emulator:$HOME/android-sdk/platform-tools:$PATH
-          sdkmanager --install "cmdline-tools;latest"
-          sdkmanager --sdk_root=${ANDROID_SDK_ROOT} \
-            "platforms;android-34" \
-            "system-images;android-34;google_apis;x86_64" \
-            "emulator"
+          sdkmanager --install "platforms;android-34" "system-images;android-34;google_apis;x86_64" "emulator"
 
          
       - name: Create Android emulator (Pixel 7)
