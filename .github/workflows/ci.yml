@@ -43,6 +43,9 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
+      
+      - name: Install SDK components
+        run: sdkmanager "platforms;android-34" "system-images;android-34;google_apis;x86_64" "emulator" "build-tools;34.0.0"
 
       - name: Create Android emulator (Pixel 7)
         run: |
