@@ -55,6 +55,9 @@ jobs:
           echo "$ANDROID_SDK_ROOT/emulator" >> $GITHUB_PATH
           echo "$ANDROID_SDK_ROOT/platform-tools" >> $GITHUB_PATH
 
+      - name: Check PATH
+        run: echo $PATH
+
       - name: Accept SDK Licenses
         run: yes | sdkmanager --licenses
 
