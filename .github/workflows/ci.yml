@@ -17,6 +17,9 @@ jobs:
       PATH: $HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/emulator:$HOME/android-sdk/platform-tools:$PATH
 
      steps:
+      - name: Ensure tar is installed (Environment failed due to missing tar)
+        run: sudo apt-get update && sudo apt-get install -y tar
+
       - name: Checkout code
         uses: actions/checkout@v4
 
