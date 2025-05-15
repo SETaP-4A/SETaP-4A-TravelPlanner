@@ -1,7 +1,0 @@
-site_name: Travel Itinerary App Docs
-nav:
-  - Home: index.md
-  - Getting Started: getting_started.md
-  - Features: features.md
-  - API Reference: api.md
-theme: readthedocs
