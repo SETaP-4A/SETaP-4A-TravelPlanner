@@ -59,9 +59,12 @@ jobs:
 
       - name: Start Android Emulator (logging enabled)
         run: |
+          set -x
           export DISPLAY=:0
+          export PATH=$PATH:$ANDROID_HOME/emulator
           emulator -avd test_emulator -no-audio -no-window -gpu swiftshader_indirect -no-snapshot-save -no-accel &
           sleep 60
+
 
 
       - name: Wait for emulator to boot
