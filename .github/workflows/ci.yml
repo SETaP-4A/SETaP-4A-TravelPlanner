@@ -48,7 +48,7 @@ jobs:
 
       - name: Create Android emulator (Pixel 7)
         run: |
-          echo "no" | avdmanager create avd -n pixel_7 -k "system-images;android-34;google_apis;x86_64" -d "pixel_7"
+          echo "no" | avdmanager create avd -n pixel_7 -k "system-images;android-34;google_apis;arm64-v8a" -d "pixel_7"
 
       - name: Launch emulator
         run: |
