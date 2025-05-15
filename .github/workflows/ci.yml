@@ -41,10 +41,11 @@ jobs:
           log-accepted-android-sdk-licenses: false
           packages: |
             platform-tools
-            platforms;android-34
-            build-tools;34.0.0
-            emulator
-            system-images;android-34;google_apis;x86_64
+            "platforms;android-34"
+            "build-tools;34.0.0"
+            "emulator"
+            "system-images;android-34;google_apis;x86_64"
+
 
       - name: Create Android Emulator
         run: |
