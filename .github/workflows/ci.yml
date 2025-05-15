@@ -13,7 +13,7 @@ jobs:
     name: Android Emulator CI
     runs-on: ubuntu-latest
     timeout-minutes: 60
-      
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -41,18 +41,14 @@ jobs:
           log-accepted-android-sdk-licenses: false
           packages: >-
             platform-tools
-            platforms;android-34
-            build-tools;34.0.0
+            platforms;android-30
+            build-tools;30.0.3
             emulator
-            system-images;android-34;google_apis;x86_64
-
-
-
-
+            system-images;android-30;google_apis;x86
 
       - name: Create Android Emulator
         run: |
-          echo "no" | avdmanager create avd -n test_emulator -k "system-images;android-34;google_apis;x86_64" -d pixel
+          echo "no" | avdmanager create avd -n test_emulator -k "system-images;android-30;google_apis;x86" -d pixel
 
       - name: Start X virtual framebuffer (Xvfb)
         run: |
@@ -64,10 +60,8 @@ jobs:
       - name: Start Android Emulator
         run: |
           export DISPLAY=:0
-          nohup $(which emulator) -avd test_emulator -no-audio -no-window -gpu swiftshader_indirect &
+          nohup $(which emulator) -avd test_emulator -no-audio -no-window -gpu swiftshader_indirect -no-snapshot-save -no-accel &
           sleep 30
-
-
 
       - name: Wait for emulator to boot
         run: |
@@ -76,23 +70,22 @@ jobs:
           adb wait-for-device
           bootanim=""
           SECONDS=0
-          timeout=300 # 5 minute timeout
+          timeout=300
           until [[ "$bootanim" == *stopped* || $SECONDS -gt $timeout ]]; do
             bootanim=$(adb shell getprop init.svc.bootanim 2>&1)
             echo "[$SECONDS sec] boot status: $bootanim"
             sleep 5
           done
           if [[ "$bootanim" != *stopped* ]]; then
-            echo "Emulator boot timed out after $timeout seconds."
+            echo "❌ Emulator boot timed out after $timeout seconds."
             adb logcat -d || true
             exit 1
           fi
-          echo "Emulator booted in $SECONDS seconds."
+          echo "✅ Emulator booted in $SECONDS seconds."
           adb shell settings put global window_animation_scale 0
           adb shell settings put global transition_animation_scale 0
           adb shell settings put global animator_duration_scale 0
 
-        
       - name: Check connected devices
         run: adb devices
 
